@@ -1,0 +1,145 @@
+from selenium.common.exceptions import NoSuchElementException
+from selenium import webdriver
+import traceback
+import time
+import random
+import os
+import re
+import pandas as pd
+
+
+def rand_delay(low, high):
+    time.sleep(random.uniform(low, high))
+
+
+def get_file_list(_dir):
+    files = os.listdir(_dir)
+    files = [os.path.join(_dir, file) for file in files]
+    return files
+
+
+def get_latest_file(_dir):
+    files = get_file_list(_dir)
+    files = [f for f in files if not re.search(r'_\d+$', os.path.splitext(f)[0])]
+    latest_file = max(files, key=os.path.getctime)
+    return latest_file
+
+
+class DKCrawler:
+    selectors = {
+        'per-page-selector': '[data-testid="per-page-selector"] > div.MuiSelect-root',
+        'per-page-100': '[data-testid="per-page-100"]',
+        'in-stock': '[data-testid="filter--2-option-5"] input[type="checkbox"]',
+        'normally-stocking': '[data-testid="filter--2-option-9"] input[type="checkbox"]',
+        'apply-all': '[data-testid="apply-all-button"]',
+        'popup-trigger': '[data-testid="download-table-popup-trigger-button"]',
+        'download': '[data-testid="download-table-button"]',
+        'next-page': '[data-testid="btn-next-page"]'
+    }
+
+    def __init__(self, url, driver_path, download_dir):
+        self.url = url
+        self.driver_path = driver_path
+        self.product_category = self.url.split('/')[-2].replace('-', '_')
+        self.download_dir = os.path.join(download_dir, self.product_category)
+        os.makedirs(self.download_dir, exist_ok=True)
+        self.browser = self._setup_browser()
+
+    def _setup_browser(self):
+        profile = webdriver.FirefoxProfile()
+        profile.set_preference("browser.download.folderList", 2)
+        profile.set_preference("browser.download.manager.showWhenStarting", False)
+
+        profile.set_preference("browser.download.dir", self.download_dir)
+        profile.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
+        browser = webdriver.Firefox(executable_path=self.driver_path, firefox_profile=profile)
+        browser.set_page_load_timeout(600)
+        return browser
+
+    def _close(self):
+        rand_delay(5, 10)
+        self.browser.close()
+        self.browser.quit()
+
+    def _set_page_size_100(self):
+        self.browser.find_element_by_css_selector(self.selectors['per-page-selector']).click()
+        rand_delay(1, 3)
+        self.browser.find_element_by_css_selector(self.selectors['per-page-100']).click()
+        rand_delay(1, 3)
+
+    def _select_in_stock(self):
+        in_stock = self.browser.find_element_by_css_selector(self.selectors['in-stock'])
+        in_stock.click()
+        rand_delay(1, 3)
+
+        normally_stocking = self.browser.find_element_by_css_selector(self.selectors['normally-stocking'])
+        normally_stocking.click()
+        rand_delay(1, 3)
+
+        apply_all = self.browser.find_element_by_css_selector(self.selectors['apply-all'])
+        apply_all.click()
+        rand_delay(1, 3)
+
+    def _click_download(self):
+        popup_trigger = self.browser.find_element_by_css_selector(self.selectors['popup-trigger'])
+        popup_trigger.click()
+        rand_delay(1, 3)
+        download_table_button = self.browser.find_element_by_css_selector(self.selectors['download'])
+        download_table_button.click()
+        rand_delay(5, 10)
+
+    def _click_next_page(self):
+        btn_next_page = self.browser.find_element_by_css_selector(self.selectors['next-page'])
+        btn_next_page.click()
+        rand_delay(5, 10)
+
+    def _rename_file(self, index):
+        try:
+            downloaded_file = get_latest_file(self.download_dir)
+            renamed_file = os.path.join(self.download_dir, f'{self.product_category}_{index}.csv')
+            os.rename(downloaded_file, renamed_file)
+        except ValueError:
+            pass
+
+    def merge_data(self):
+        files = get_file_list(self.download_dir)
+        combined_data = pd.concat([pd.read_csv(f) for f in files])
+        combined_data.to_excel(f'{os.path.join(self.download_dir, self.product_category)}_all.xlsx',
+                               index=False, encoding='utf-8-sig')
+
+    def crawl(self):
+        self.browser.get(self.url)
+        self._set_page_size_100()
+        self._select_in_stock()
+
+        try:
+            index = 1
+            while True:
+                self._click_download()
+                self._rename_file(index)
+                index += 1
+                try:
+                    self._click_next_page()
+                except NoSuchElementException:
+                    break
+            self.merge_data()
+        except NoSuchElementException:
+            traceback.print_stack()
+        finally:
+            self._close()
+
+
+def main():
+    driver_path = 'geckodriver.exe'
+    download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
+
+    urls = ['https://www.digikey.com/en/products/filter/d-sub-cables/461',
+            'https://www.digikey.com/en/products/filter/usb-cables/455']
+
+    for url in urls:
+        crawler = DKCrawler(url, driver_path, download_dir)
+        crawler.crawl()
+
+
+if __name__ == '__main__':
+    main()
