@@ -141,10 +141,10 @@ class DKCrawler:
                     self._click_next_page()
                 else:
                     break
-            self._merge_data()
         except NoSuchElementException:
             traceback.print_stack()
         finally:
+            self._merge_data()
             self._close()
 
 
@@ -163,14 +163,12 @@ def main():
     driver_path = 'geckodriver.exe'
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
 
-    urls = ['https://www.digikey.com/en/products/filter/d-sub-connectors/439',
-            'https://www.digikey.com/en/products/filter/d-sub-cables/461',
-            'https://www.digikey.com/en/products/filter/usb-cables/455']
+    urls = ['https://www.digikey.com/en/products/filter/rectangular-connectors-headers-receptacles-female-sockets/315',
+            'https://www.digikey.com/en/products/filter/rectangular-connectors-board-spacers-stackers-board-to-board/400',
+            'https://www.digikey.com/en/products/filter/terminal-blocks-headers-plugs-and-sockets/370',
+            'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-male-pins/314']
 
-    run_crawlers(urls, driver_path, download_dir, n_workers=3)
-    # for url in urls:
-    #     crawler = DKCrawler(url, driver_path, download_dir)
-    #     crawler.crawl()
+    run_crawlers(urls, driver_path, download_dir, n_workers=4)
 
 
 if __name__ == '__main__':
