@@ -1,11 +1,13 @@
 from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
+import pandas as pd
+import concurrent.futures
 import traceback
 import time
 import random
 import os
 import re
-import pandas as pd
+
 
 
 def rand_delay(low, high):
@@ -146,6 +148,17 @@ class DKCrawler:
             self._close()
 
 
+def run_crawler(url, driver_path, download_dir):
+    crawler = DKCrawler(url, driver_path, download_dir)
+    crawler.crawl()
+
+
+def run_crawlers(urls, driver_path, download_dir, n_workers):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
+        for url in urls:
+            executor.submit(run_crawler, url, driver_path, download_dir)
+
+
 def main():
     driver_path = 'geckodriver.exe'
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
@@ -154,9 +167,10 @@ def main():
             'https://www.digikey.com/en/products/filter/d-sub-cables/461',
             'https://www.digikey.com/en/products/filter/usb-cables/455']
 
-    for url in urls:
-        crawler = DKCrawler(url, driver_path, download_dir)
-        crawler.crawl()
+    run_crawlers(urls, driver_path, download_dir, n_workers=3)
+    # for url in urls:
+    #     crawler = DKCrawler(url, driver_path, download_dir)
+    #     crawler.crawl()
 
 
 if __name__ == '__main__':
