@@ -1,7 +1,7 @@
 from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 import pandas as pd
-from pandas.errors import EmptyDataError
+from pandas.errors import EmptyDataError, ParserError
 import concurrent.futures
 import traceback
 import time
@@ -14,25 +14,31 @@ def rand_delay(low, high):
     time.sleep(random.uniform(low, high))
 
 
-def get_file_list(_dir):
-    files = os.listdir(_dir)
-    files = [os.path.join(_dir, file) for file in files]
+def get_file_list(_dir, suffix=None):
+    files = []
+    for dirpath, dirnames, filenames in os.walk(_dir):
+        for filename in filenames:
+            files.append(os.path.join(dirpath, filename))
+
+    if suffix:
+        files = [f for f in files if f.endswith(suffix)]
     return files
 
 
-def merge_data(download_dir, product_category):
-    files = get_file_list(download_dir)
+def concat_data(in_files, out_path):
     dfs = []
-    for file in files:
+    for file in in_files:
         try:
-            df = pd.read_csv(file)
+            try:
+                df = pd.read_csv(file)
+            except ParserError:
+                df = pd.read_excel(file)
             dfs.append(df)
         except EmptyDataError:
             print(f'"{file}" is empty')
-    combined_data = pd.concat(dfs)
+    combined_data = pd.concat(dfs, join='inner', ignore_index=True)
     combined_data.drop_duplicates(inplace=True)
-    combined_data.to_excel(f'{os.path.join(download_dir, product_category)}_all.xlsx',
-                           index=False, encoding='utf-8-sig')
+    combined_data.to_excel(out_path, index=False, encoding='utf-8-sig')
 
 
 def get_latest_file(_dir):
@@ -52,7 +58,8 @@ class DKCrawler:
         'popup-trigger': '[data-testid="download-table-popup-trigger-button"]',
         'download': '[data-testid="download-table-button"]',
         'next-page': '[data-testid="btn-next-page"]',
-        'max-page': '[data-testid="per-page-selector-container"] > div:last-child > span'
+        'max-page': '[data-testid="per-page-selector-container"] > div:last-child > span',
+        'active-parts': '[data-testid="filter-1989-option-0"]',
     }
 
     def __init__(self, url, driver_path, download_dir):
@@ -96,6 +103,11 @@ class DKCrawler:
 
         apply_all = self.browser.find_element_by_css_selector(self.selectors['apply-all'])
         apply_all.click()
+        rand_delay(1, 3)
+
+    def _select_active(self):
+        active_parts = self.browser.find_element_by_css_selector(self.selectors['active_parts'])
+        active_parts.click()
         rand_delay(1, 3)
 
     def _get_max_page(self):
@@ -150,9 +162,11 @@ class DKCrawler:
                 else:
                     break
         except NoSuchElementException:
-            traceback.print_stack()
+            traceback.print_exc()
         finally:
-            merge_data(self.download_dir, self.product_category)
+            in_files = get_file_list(self.download_dir)
+            out_path = os.path.join(self.download_dir, f'{self.product_category}_all.xlsx')
+            concat_data(in_files, out_path)
             self._close()
 
 
@@ -162,21 +176,27 @@ def run_crawler(url, driver_path, download_dir):
 
 
 def run_crawlers(urls, driver_path, download_dir, n_workers):
-    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(n_workers, len(urls))) as executor:
         for url in urls:
             executor.submit(run_crawler, url, driver_path, download_dir)
+    in_files = get_file_list(download_dir, suffix='all.xlsx')
+    out_path = os.path.join(download_dir, 'concat.xlsx')
+    concat_data(in_files, out_path)
 
 
 def main():
     driver_path = 'geckodriver.exe'
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
 
-    urls = ['https://www.digikey.com/en/products/filter/rectangular-connectors-headers-receptacles-female-sockets/315',
-            'https://www.digikey.com/en/products/filter/rectangular-connectors-board-spacers-stackers-board-to-board/400',
-            'https://www.digikey.com/en/products/filter/terminal-blocks-headers-plugs-and-sockets/370',
-            'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-male-pins/314']
+    # urls1 = ['https://www.digikey.com/en/products/filter/rectangular-connectors-headers-receptacles-female-sockets/315',
+    #          'https://www.digikey.com/en/products/filter/rectangular-connectors-board-spacers-stackers-board-to-board/400',
+    #          'https://www.digikey.com/en/products/filter/terminal-blocks-headers-plugs-and-sockets/370',
+    #          'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-male-pins/314']
 
-    run_crawlers(urls, driver_path, download_dir, n_workers=4)
+    urls2 = ['https://www.digikey.com/en/products/filter/d-shaped-centronics-cables/466',
+             'https://www.digikey.com/en/products/filter/barrel-power-cables/464']
+
+    run_crawlers(urls2, driver_path, download_dir, n_workers=4)
 
 
 if __name__ == '__main__':
