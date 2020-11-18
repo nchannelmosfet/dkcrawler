@@ -1,13 +1,13 @@
 from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 import pandas as pd
+from pandas.errors import EmptyDataError
 import concurrent.futures
 import traceback
 import time
 import random
 import os
 import re
-
 
 
 def rand_delay(low, high):
@@ -18,6 +18,21 @@ def get_file_list(_dir):
     files = os.listdir(_dir)
     files = [os.path.join(_dir, file) for file in files]
     return files
+
+
+def merge_data(download_dir, product_category):
+    files = get_file_list(download_dir)
+    dfs = []
+    for file in files:
+        try:
+            df = pd.read_csv(file)
+            dfs.append(df)
+        except EmptyDataError:
+            print(f'"{file}" is empty')
+    combined_data = pd.concat(dfs)
+    combined_data.drop_duplicates(inplace=True)
+    combined_data.to_excel(f'{os.path.join(download_dir, product_category)}_all.xlsx',
+                           index=False, encoding='utf-8-sig')
 
 
 def get_latest_file(_dir):
@@ -111,13 +126,6 @@ class DKCrawler:
         except ValueError:
             pass
 
-    def _merge_data(self):
-        files = get_file_list(self.download_dir)
-        combined_data = pd.concat([pd.read_csv(f) for f in files])
-        combined_data.drop_duplicates(inplace=True)
-        combined_data.to_excel(f'{os.path.join(self.download_dir, self.product_category)}_all.xlsx',
-                               index=False, encoding='utf-8-sig')
-
     def _del_prev_files(self):
         files = get_file_list(self.download_dir)
         for f in files:
@@ -144,7 +152,7 @@ class DKCrawler:
         except NoSuchElementException:
             traceback.print_stack()
         finally:
-            self._merge_data()
+            merge_data(self.download_dir, self.product_category)
             self._close()
 
 
