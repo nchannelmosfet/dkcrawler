@@ -2,12 +2,22 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 import pandas as pd
 from pandas.errors import EmptyDataError, ParserError
+from http_request_randomizer.requests.proxy.requestProxy import RequestProxy
 import concurrent.futures
 import traceback
 import time
 import random
 import os
 import re
+
+
+def get_proxies():
+    req_proxy = RequestProxy()
+    proxies = req_proxy.get_proxy_list()
+    return proxies
+
+
+PROXIES = get_proxies()
 
 
 def rand_delay(low, high):
@@ -73,6 +83,14 @@ class DKCrawler:
         self.browser = self._setup_browser()
 
     def _setup_browser(self):
+        proxy = random.sample(PROXIES, 1)[0].get_address()
+        webdriver.DesiredCapabilities.FIREFOX['proxy'] = {
+            "httpProxy": proxy,
+            "ftpProxy": proxy,
+            "sslProxy": proxy,
+            "proxyType": "MANUAL",
+        }
+
         profile = webdriver.FirefoxProfile()
         profile.set_preference("browser.download.folderList", 2)
         profile.set_preference("browser.download.manager.showWhenStarting", False)
@@ -469,7 +487,6 @@ def main():
         'https://www.digikey.com/en/products/filter/usb-dvi-hdmi-connectors/312',
     ]
 
-
     # urls1 = ['https://www.digikey.com/en/products/filter/rectangular-connectors-headers-receptacles-female-sockets/315',
     #          'https://www.digikey.com/en/products/filter/rectangular-connectors-board-spacers-stackers-board-to-board/400',
     #          'https://www.digikey.com/en/products/filter/terminal-blocks-headers-plugs-and-sockets/370',
@@ -478,7 +495,7 @@ def main():
     # urls2 = ['https://www.digikey.com/en/products/filter/d-shaped-centronics-cables/466',
     #          'https://www.digikey.com/en/products/filter/barrel-power-cables/464']
 
-    run_crawlers(all_urls[0:50], driver_path, download_dir, n_workers=4)
+    run_crawlers(random.sample(all_urls, 8), driver_path, download_dir, n_workers=4)
 
 
 if __name__ == '__main__':
