@@ -17,7 +17,7 @@ def get_proxies():
     return proxies
 
 
-PROXIES = get_proxies()
+# PROXIES = get_proxies()
 
 
 def rand_delay(low, high):
@@ -83,13 +83,13 @@ class DKCrawler:
         self.browser = self._setup_browser()
 
     def _setup_browser(self):
-        proxy = random.sample(PROXIES, 1)[0].get_address()
-        webdriver.DesiredCapabilities.FIREFOX['proxy'] = {
-            "httpProxy": proxy,
-            "ftpProxy": proxy,
-            "sslProxy": proxy,
-            "proxyType": "MANUAL",
-        }
+        # proxy = random.sample(PROXIES, 1)[0].get_address()
+        # webdriver.DesiredCapabilities.FIREFOX['proxy'] = {
+        #     "httpProxy": proxy,
+        #     "ftpProxy": proxy,
+        #     "sslProxy": proxy,
+        #     "proxyType": "MANUAL",
+        # }
 
         profile = webdriver.FirefoxProfile()
         profile.set_preference("browser.download.folderList", 2)
@@ -495,7 +495,7 @@ def main():
     # urls2 = ['https://www.digikey.com/en/products/filter/d-shaped-centronics-cables/466',
     #          'https://www.digikey.com/en/products/filter/barrel-power-cables/464']
 
-    run_crawlers(random.sample(all_urls, 8), driver_path, download_dir, n_workers=4)
+    run_crawlers(random.sample(all_urls, 10), driver_path, download_dir, n_workers=2)
 
 
 if __name__ == '__main__':
