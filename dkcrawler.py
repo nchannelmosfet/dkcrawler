@@ -2,22 +2,12 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 import pandas as pd
 from pandas.errors import EmptyDataError, ParserError
-from http_request_randomizer.requests.proxy.requestProxy import RequestProxy
 import concurrent.futures
 import traceback
 import time
 import random
 import os
 import re
-
-
-def get_proxies():
-    req_proxy = RequestProxy()
-    proxies = req_proxy.get_proxy_list()
-    return proxies
-
-
-# PROXIES = get_proxies()
 
 
 def rand_delay(low, high):
@@ -48,7 +38,9 @@ def concat_data(in_files, out_path):
             print(f'"{file}" is empty')
     combined_data = pd.concat(dfs, join='inner', ignore_index=True)
     combined_data.drop_duplicates(inplace=True)
-    combined_data.to_excel(out_path, index=False, encoding='utf-8-sig')
+    # drop malformed data
+    combined_data = combined_data[~combined_data['Stock'].str.contains('.', na=False)]
+    combined_data.to_excel(out_path, index=False)
 
 
 def get_latest_file(_dir):
@@ -83,14 +75,6 @@ class DKCrawler:
         self.browser = self._setup_browser()
 
     def _setup_browser(self):
-        # proxy = random.sample(PROXIES, 1)[0].get_address()
-        # webdriver.DesiredCapabilities.FIREFOX['proxy'] = {
-        #     "httpProxy": proxy,
-        #     "ftpProxy": proxy,
-        #     "sslProxy": proxy,
-        #     "proxyType": "MANUAL",
-        # }
-
         profile = webdriver.FirefoxProfile()
         profile.set_preference("browser.download.folderList", 2)
         profile.set_preference("browser.download.manager.showWhenStarting", False)
@@ -151,10 +135,9 @@ class DKCrawler:
     def _rename_file(self, cur_page):
         try:
             downloaded_file = get_latest_file(self.download_dir)
-            print(f'Downloaded file: "{downloaded_file}"')
             renamed_file = os.path.join(self.download_dir, f'{self.product_category}_{cur_page}.csv')
             os.rename(downloaded_file, renamed_file)
-            print(f'Renamed file: "{downloaded_file}" -> "{renamed_file}"')
+            print(f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"')
         except ValueError:
             pass
 
@@ -200,10 +183,15 @@ def run_crawlers(urls, driver_path, download_dir, n_workers):
         for url in urls:
             executor.submit(run_crawler, url, driver_path, download_dir)
 
+    download_dir = r"C:\Users\jwu\Downloads"
+    in_files = get_file_list(download_dir, suffix='all.xlsx')
+    out_path = os.path.join(download_dir, 'concat.xlsx')
+    concat_data(in_files, out_path)
+
 
 def main():
-    driver_path = 'geckodriver.exe'
-    download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
+    # driver_path = 'geckodriver.exe'
+    # download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
 
     all_urls = [
         'https://www.digikey.com/en/products/filter/accessories/159',
@@ -492,11 +480,15 @@ def main():
     #          'https://www.digikey.com/en/products/filter/terminal-blocks-headers-plugs-and-sockets/370',
     #          'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-male-pins/314']
 
-    # urls2 = ['https://www.digikey.com/en/products/filter/d-shaped-centronics-cables/466',
-    #          'https://www.digikey.com/en/products/filter/barrel-power-cables/464']
+    # urls2 = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
+    #          'https://www.digikey.com/en/products/filter/accessories/87']
+    # rand_urls = random.sample(all_urls, 10)
+    # run_crawlers(rand_urls, driver_path, download_dir, n_workers=2)
 
-    run_crawlers(random.sample(all_urls, 10), driver_path, download_dir, n_workers=2)
-
+    download_dir = r"C:\Users\jwu\Downloads"
+    in_files = get_file_list(download_dir, suffix='all.xlsx')
+    out_path = os.path.join(download_dir, 'concat.xlsx')
+    concat_data(in_files, out_path)
 
 if __name__ == '__main__':
     main()
