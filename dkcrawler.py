@@ -39,7 +39,6 @@ def concat_data(in_files, out_path):
     combined_data = pd.concat(dfs, join='inner', ignore_index=True)
     combined_data.drop_duplicates(inplace=True)
     # drop malformed data
-    combined_data = combined_data[~combined_data['Stock'].str.contains('.', na=False)]
     combined_data.to_excel(out_path, index=False)
 
 
@@ -73,6 +72,7 @@ class DKCrawler:
         self.download_dir = os.path.join(download_dir, f'{self.product_category}_{self.product_id}')
         os.makedirs(self.download_dir, exist_ok=True)
         self.browser = self._setup_browser()
+        self.log_text = ''
 
     def _setup_browser(self):
         profile = webdriver.FirefoxProfile()
@@ -137,7 +137,10 @@ class DKCrawler:
             downloaded_file = get_latest_file(self.download_dir)
             renamed_file = os.path.join(self.download_dir, f'{self.product_category}_{cur_page}.csv')
             os.rename(downloaded_file, renamed_file)
-            print(f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"')
+
+            status = f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"\n\n'
+            self.log_text += status
+            print(status)
         except ValueError:
             pass
 
@@ -164,12 +167,17 @@ class DKCrawler:
                     self._click_next_page()
                 else:
                     break
-        except NoSuchElementException:
-            traceback.print_exc()
-        finally:
             in_files = get_file_list(self.download_dir)
             out_path = os.path.join(self.download_dir, f'{self.product_category}_all.xlsx')
             concat_data(in_files, out_path)
+        except:
+            stack_trace = traceback.format_exc()
+            self.log_text += stack_trace
+            traceback.print_exc()
+        finally:
+            log_file_path = os.path.join(self.download_dir, f'{self.product_category}.log')
+            with open(log_file_path, 'w') as f:
+                f.write(self.log_text)
             self._close()
 
 
@@ -183,15 +191,14 @@ def run_crawlers(urls, driver_path, download_dir, n_workers):
         for url in urls:
             executor.submit(run_crawler, url, driver_path, download_dir)
 
-    download_dir = r"C:\Users\jwu\Downloads"
     in_files = get_file_list(download_dir, suffix='all.xlsx')
     out_path = os.path.join(download_dir, 'concat.xlsx')
     concat_data(in_files, out_path)
 
 
 def main():
-    # driver_path = 'geckodriver.exe'
-    # download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
+    driver_path = 'geckodriver.exe'
+    download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
 
     all_urls = [
         'https://www.digikey.com/en/products/filter/accessories/159',
@@ -475,20 +482,12 @@ def main():
         'https://www.digikey.com/en/products/filter/usb-dvi-hdmi-connectors/312',
     ]
 
-    # urls1 = ['https://www.digikey.com/en/products/filter/rectangular-connectors-headers-receptacles-female-sockets/315',
-    #          'https://www.digikey.com/en/products/filter/rectangular-connectors-board-spacers-stackers-board-to-board/400',
-    #          'https://www.digikey.com/en/products/filter/terminal-blocks-headers-plugs-and-sockets/370',
-    #          'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-male-pins/314']
+    short_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
+                  'https://www.digikey.com/en/products/filter/accessories/87']
 
-    # urls2 = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
-    #          'https://www.digikey.com/en/products/filter/accessories/87']
-    # rand_urls = random.sample(all_urls, 10)
-    # run_crawlers(rand_urls, driver_path, download_dir, n_workers=2)
+    rand_urls = random.sample(all_urls, 6)
+    run_crawlers(rand_urls, driver_path, download_dir, n_workers=2)
 
-    download_dir = r"C:\Users\jwu\Downloads"
-    in_files = get_file_list(download_dir, suffix='all.xlsx')
-    out_path = os.path.join(download_dir, 'concat.xlsx')
-    concat_data(in_files, out_path)
 
 if __name__ == '__main__':
     main()
