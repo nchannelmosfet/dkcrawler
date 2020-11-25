@@ -174,7 +174,7 @@ class DKCrawler:
             in_files = get_file_list(self.download_dir)
             out_path = os.path.join(self.download_dir, f'{self.product_category}_all.xlsx')
             combined_data = concat_data(in_files, out_path)
-            if combined_data['Stock'].astype(str).str.contains('.'):
+            if any(combined_data['Stock'].astype(str).str.contains('.')):
                 alert = 'ALERT!\nColumn "Stock" contains decimal numbers.\nColumn misaligned.\nFix data mannually. '
                 self.log_text += alert
         except:
