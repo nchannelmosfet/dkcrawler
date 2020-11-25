@@ -8,6 +8,7 @@ import time
 import random
 import os
 import re
+from urllib.parse import urljoin
 
 
 def rand_delay(low, high):
@@ -49,6 +50,19 @@ def get_latest_file(_dir):
     return latest_file
 
 
+def setup_browser(driver_path, download_dir=None):
+    profile = webdriver.FirefoxProfile()
+    profile.set_preference("browser.download.folderList", 2)
+    profile.set_preference("browser.download.manager.showWhenStarting", False)
+
+    if download_dir:
+        profile.set_preference("browser.download.dir", download_dir)
+    profile.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
+    browser = webdriver.Firefox(executable_path=driver_path, firefox_profile=profile)
+    browser.set_page_load_timeout(600)
+    return browser
+
+
 class DKCrawler:
     selectors = {
         'per-page-selector': '[data-testid="per-page-selector"] > div.MuiSelect-root',
@@ -64,26 +78,15 @@ class DKCrawler:
     }
 
     def __init__(self, url, driver_path, download_dir):
-        self.url = url
+        self.url = url.split('?')[0]
         self.driver_path = driver_path
         url_split = self.url.split('/')
         self.product_category = url_split[-2].replace('-', '_')
         self.product_id = url_split[-1]
         self.download_dir = os.path.join(download_dir, f'{self.product_category}_{self.product_id}')
         os.makedirs(self.download_dir, exist_ok=True)
-        self.browser = self._setup_browser()
+        self.browser = setup_browser(self.driver_path, self.download_dir)
         self.log_text = ''
-
-    def _setup_browser(self):
-        profile = webdriver.FirefoxProfile()
-        profile.set_preference("browser.download.folderList", 2)
-        profile.set_preference("browser.download.manager.showWhenStarting", False)
-
-        profile.set_preference("browser.download.dir", self.download_dir)
-        profile.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
-        browser = webdriver.Firefox(executable_path=self.driver_path, firefox_profile=profile)
-        browser.set_page_load_timeout(600)
-        return browser
 
     def _close(self):
         rand_delay(5, 10)
@@ -196,294 +199,29 @@ def run_crawlers(urls, driver_path, download_dir, n_workers):
     concat_data(in_files, out_path)
 
 
+def extract_all_dk_product_category_urls(driver_path):
+    browser = setup_browser(driver_path)
+    url = 'https://www.digikey.com/en/products'
+    browser.get(url)
+
+    rand_delay(2, 5)
+    url_elems = browser.find_elements_by_css_selector('[data-testid="subcategories-items"]')
+    urls = [elem.get_attribute('href') for elem in url_elems]
+    urls = [urljoin('https://www.digikey.com', url) for url in urls]
+    rand_delay(2, 5)
+
+    browser.close()
+    browser.quit()
+    return urls
+
+
 def main():
     driver_path = 'geckodriver.exe'
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
+    all_urls = extract_all_dk_product_category_urls(driver_path)
 
-    all_urls = [
-        'https://www.digikey.com/en/products/filter/accessories/159',
-        'https://www.digikey.com/en/products/filter/alarms-buzzers-and-sirens/157',
-        'https://www.digikey.com/en/products/filter/amplifiers/998',
-        'https://www.digikey.com/en/products/filter/buzzer-elements-piezo-benders/160',
-        'https://www.digikey.com/en/products/filter/guitar-parts-accessories/1001',
-        'https://www.digikey.com/en/products/filter/microphones/158',
-        'https://www.digikey.com/en/products/filter/speakers/156',
-        'https://www.digikey.com/en/products/filter/vacuum-tubes/1004',
-        'https://www.digikey.com/en/products/filter/accessories/87',
-        'https://www.digikey.com/en/products/filter/batteries-non-rechargeable-primary/90',
-        'https://www.digikey.com/en/products/filter/batteries-rechargeable-secondary/91',
-        'https://www.digikey.com/en/products/filter/battery-chargers/85',
-        'https://www.digikey.com/en/products/filter/battery-holders-clips-contacts/86',
-        'https://www.digikey.com/en/products/filter/battery-packs/89',
-        'https://www.digikey.com/en/products/filter/cigarette-lighter-assemblies/88',
-        'https://www.digikey.com/en/products/filter/backplanes/589',
-        'https://www.digikey.com/en/products/filter/box-accessories/595',
-        'https://www.digikey.com/en/products/filter/box-components/596',
-        'https://www.digikey.com/en/products/filter/boxes/594',
-        'https://www.digikey.com/en/products/filter/cams/960',
-        'https://www.digikey.com/en/products/filter/card-guide-accessories/600',
-        'https://www.digikey.com/en/products/filter/card-guides/591',
-        'https://www.digikey.com/en/products/filter/card-rack-accessories/601',
-        'https://www.digikey.com/en/products/filter/card-racks/588',
-        'https://www.digikey.com/en/products/filter/evaluation-development-board-enclosures/975',
-        'https://www.digikey.com/en/products/filter/handles/590',
-        'https://www.digikey.com/en/products/filter/latches-locks/973',
-        'https://www.digikey.com/en/products/filter/patchbay-jack-panel-accessories/593',
-        'https://www.digikey.com/en/products/filter/patchbay-jack-panels/592',
-        'https://www.digikey.com/en/products/filter/rack-accessories/598',
-        'https://www.digikey.com/en/products/filter/rack-components/599',
-        'https://www.digikey.com/en/products/filter/rack-thermal-management/602',
-        'https://www.digikey.com/en/products/filter/racks/597',
-        'https://www.digikey.com/en/products/filter/barrel-audio-cables/463',
-        'https://www.digikey.com/en/products/filter/barrel-power-cables/464',
-        'https://www.digikey.com/en/products/filter/between-series-adapter-cables/459',
-        'https://www.digikey.com/en/products/filter/circular-cable-assemblies/448',
-        'https://www.digikey.com/en/products/filter/coaxial-cables-rf/456',
-        'https://www.digikey.com/en/products/filter/d-shaped-centronics-cables/466',
-        'https://www.digikey.com/en/products/filter/d-sub-cables/461',
-        'https://www.digikey.com/en/products/filter/fiber-optic-cables/449',
-        'https://www.digikey.com/en/products/filter/firewire-cables-ieee-1394/454',
-        'https://www.digikey.com/en/products/filter/flat-flex-jumpers-cables-ffc-fpc/458',
-        'https://www.digikey.com/en/products/filter/flat-flex-ribbon-jumpers-cables/457',
-        'https://www.digikey.com/en/products/filter/jumper-wires-pre-crimped-leads/453',
-        'https://www.digikey.com/en/products/filter/lgh-cables/465',
-        'https://www.digikey.com/en/products/filter/modular-cables/451',
-        'https://www.digikey.com/en/products/filter/pluggable-cables/460',
-        'https://www.digikey.com/en/products/filter/power-line-cables-and-extension-cords/452',
-        'https://www.digikey.com/en/products/filter/rectangular-cable-assemblies/450',
-        'https://www.digikey.com/en/products/filter/smart-cables/468',
-        'https://www.digikey.com/en/products/filter/solid-state-lighting-cables/469',
-        'https://www.digikey.com/en/products/filter/specialized-cable-assemblies/467',
-        'https://www.digikey.com/en/products/filter/usb-cables/455',
-        'https://www.digikey.com/en/products/filter/video-cables-dvi-hdmi/462',
-        'https://www.digikey.com/en/products/filter/accessories/479',
-        'https://www.digikey.com/en/products/filter/bushings-grommets/491',
-        'https://www.digikey.com/en/products/filter/cable-supports-and-fasteners/490',
-        'https://www.digikey.com/en/products/filter/cable-ties-holders-and-mountings/488',
-        'https://www.digikey.com/en/products/filter/cable-ties-and-cable-lacing/482',
-        'https://www.digikey.com/en/products/filter/cable-and-cord-grips/492',
-        'https://www.digikey.com/en/products/filter/cold-shrink-tape-tubing/485',
-        'https://www.digikey.com/en/products/filter/fiber-optic-cables/481',
-        'https://www.digikey.com/en/products/filter/grounding-braid-straps/494',
-        'https://www.digikey.com/en/products/filter/heat-shrink-boots-caps/499',
-        'https://www.digikey.com/en/products/filter/heat-shrink-fabric/489',
-        'https://www.digikey.com/en/products/filter/heat-shrink-tubing/483',
-        'https://www.digikey.com/en/products/filter/heat-shrink-wrap/497',
-        'https://www.digikey.com/en/products/filter/labels-labeling/484',
-        'https://www.digikey.com/en/products/filter/markers/493',
-        'https://www.digikey.com/en/products/filter/protective-hoses-solid-tubing-sleeving/480',
-        'https://www.digikey.com/en/products/filter/pulling-support-grips/498',
-        'https://www.digikey.com/en/products/filter/solder-sleeve/478',
-        'https://www.digikey.com/en/products/filter/spiral-wrap-expandable-sleeving/495',
-        'https://www.digikey.com/en/products/filter/splice-enclosures-protection/496',
-        'https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories-covers/957',
-        'https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories/487',
-        'https://www.digikey.com/en/products/filter/wire-ducts-raceways/486',
-        'https://www.digikey.com/en/products/filter/coaxial-cables-rf/475',
-        'https://www.digikey.com/en/products/filter/fiber-optic-cables/471',
-        'https://www.digikey.com/en/products/filter/flat-flex-cables-ffc-fpc/476',
-        'https://www.digikey.com/en/products/filter/flat-ribbon-cables/472',
-        'https://www.digikey.com/en/products/filter/modular-flat-cable/477',
-        'https://www.digikey.com/en/products/filter/multiple-conductor-cables/473',
-        'https://www.digikey.com/en/products/filter/single-conductor-cables-hook-up-wire/474',
-        'https://www.digikey.com/en/products/filter/wire-wrap/470',
-        'https://www.digikey.com/en/products/filter/accessories/63',
-        'https://www.digikey.com/en/products/filter/aluminum-polymer-capacitors/69',
-        'https://www.digikey.com/en/products/filter/aluminum-electrolytic-capacitors/58',
-        'https://www.digikey.com/en/products/filter/capacitor-networks-arrays/57',
-        'https://www.digikey.com/en/products/filter/ceramic-capacitors/60',
-        'https://www.digikey.com/en/products/filter/electric-double-layer-capacitors-edlc-supercapacitors/61',
-        'https://www.digikey.com/en/products/filter/film-capacitors/62',
-        'https://www.digikey.com/en/products/filter/mica-and-ptfe-capacitors/64',
-        'https://www.digikey.com/en/products/filter/niobium-oxide-capacitors/67',
-        'https://www.digikey.com/en/products/filter/silicon-capacitors/68',
-        'https://www.digikey.com/en/products/filter/tantalum-polymer-capacitors/70',
-        'https://www.digikey.com/en/products/filter/tantalum-capacitors/59',
-        'https://www.digikey.com/en/products/filter/thin-film-capacitors/66',
-        'https://www.digikey.com/en/products/filter/trimmers-variable-capacitors/65',
-        'https://www.digikey.com/en/products/filter/accessories/145',
-        'https://www.digikey.com/en/products/filter/circuit-breakers/143',
-        'https://www.digikey.com/en/products/filter/electrical-specialty-fuses/155',
-        'https://www.digikey.com/en/products/filter/fuseholders/140',
-        'https://www.digikey.com/en/products/filter/fuses/139',
-        'https://www.digikey.com/en/products/filter/gas-discharge-tube-arresters-gdt/142',
-        'https://www.digikey.com/en/products/filter/ground-fault-circuit-interrupter-gfci/148',
-        'https://www.digikey.com/en/products/filter/inrush-current-limiters-icl/151',
-        'https://www.digikey.com/en/products/filter/lighting-protection/154',
-        'https://www.digikey.com/en/products/filter/ptc-resettable-fuses/150',
-        'https://www.digikey.com/en/products/filter/surge-suppression-ics/152',
-        'https://www.digikey.com/en/products/filter/tvs-diodes/144',
-        'https://www.digikey.com/en/products/filter/tvs-mixed-technology/149',
-        'https://www.digikey.com/en/products/filter/tvs-surge-protection-devices-spds/992',
-        'https://www.digikey.com/en/products/filter/tvs-thyristors/147',
-        'https://www.digikey.com/en/products/filter/tvs-varistors-movs/141',
-        'https://www.digikey.com/en/products/filter/thermal-cutoffs-thermal-fuses/146',
-        'https://www.digikey.com/en/products/filter/accessories/881',
-        'https://www.digikey.com/en/products/filter/adapter-cards/888',
-        'https://www.digikey.com/en/products/filter/adapters-converters/882',
-        'https://www.digikey.com/en/products/filter/brackets/889',
-        'https://www.digikey.com/en/products/filter/cameras-projectors/898',
-        'https://www.digikey.com/en/products/filter/computer-mouse-trackballs/893',
-        'https://www.digikey.com/en/products/filter/desktop-joysticks-simulation-products/899',
-        'https://www.digikey.com/en/products/filter/kvm-switches-keyboard-video-mouse-cables/896',
-        'https://www.digikey.com/en/products/filter/kvm-switches-keyboard-video-mouse/890',
-        'https://www.digikey.com/en/products/filter/keyboards/885',
-        'https://www.digikey.com/en/products/filter/magnetic-strip-smart-card-readers/891',
-        'https://www.digikey.com/en/products/filter/memory-card-readers/895',
-        'https://www.digikey.com/en/products/filter/modems/897',
-        'https://www.digikey.com/en/products/filter/monitors/900',
-        'https://www.digikey.com/en/products/filter/printers-label-makers/887',
-        'https://www.digikey.com/en/products/filter/privacy-filters-screen-protectors/883',
-        'https://www.digikey.com/en/products/filter/server-acceleration-cards/986',
-        'https://www.digikey.com/en/products/filter/usb-hubs/1015',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-arinc-inserts/430',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-arinc/386',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-accessories/343',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-contacts/335',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-din-41612/307',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-hard-metric-standard/406',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-housings/372',
-        'https://www.digikey.com/en/products/filter/backplane-connectors-specialized/407',
-        'https://www.digikey.com/en/products/filter/banana-and-tip-connectors-accessories/351',
-        'https://www.digikey.com/en/products/filter/banana-and-tip-connectors-adapters/381',
-        'https://www.digikey.com/en/products/filter/banana-and-tip-connectors-binding-posts/310',
-        'https://www.digikey.com/en/products/filter/banana-and-tip-connectors-jacks-plugs/302',
-        'https://www.digikey.com/en/products/filter/barrel-accessories/348',
-        'https://www.digikey.com/en/products/filter/barrel-adapters/376',
-        'https://www.digikey.com/en/products/filter/barrel-audio-connectors/434',
-        'https://www.digikey.com/en/products/filter/barrel-power-connectors/435',
-        'https://www.digikey.com/en/products/filter/between-series-adapters/373',
-        'https://www.digikey.com/en/products/filter/blade-type-power-connectors-accessories/360',
-        'https://www.digikey.com/en/products/filter/blade-type-power-connectors-contacts/420',
-        'https://www.digikey.com/en/products/filter/blade-type-power-connectors-housings/419',
-        'https://www.digikey.com/en/products/filter/blade-type-power-connectors/357',
-        'https://www.digikey.com/en/products/filter/card-edge-connectors-accessories/349',
-        'https://www.digikey.com/en/products/filter/card-edge-connectors-adapters/429',
-        'https://www.digikey.com/en/products/filter/card-edge-connectors-contacts/345',
-        'https://www.digikey.com/en/products/filter/card-edge-connectors-edgeboard-connectors/303',
-        'https://www.digikey.com/en/products/filter/card-edge-connectors-housings/354',
-        'https://www.digikey.com/en/products/filter/circular-connectors-accessories/329',
-        'https://www.digikey.com/en/products/filter/circular-connectors-adapters/378',
-        'https://www.digikey.com/en/products/filter/circular-connectors-backshells-and-cable-clamps/313',
-        'https://www.digikey.com/en/products/filter/circular-connectors-contacts/330',
-        'https://www.digikey.com/en/products/filter/circular-connectors-housings/320',
-        'https://www.digikey.com/en/products/filter/circular-connectors/436',
-        'https://www.digikey.com/en/products/filter/coaxial-connectors-rf-accessories/342',
-        'https://www.digikey.com/en/products/filter/coaxial-connectors-rf-adapters/374',
-        'https://www.digikey.com/en/products/filter/coaxial-connectors-rf-contacts/388',
-        'https://www.digikey.com/en/products/filter/coaxial-connectors-rf-terminators/382',
-        'https://www.digikey.com/en/products/filter/coaxial-connectors-rf/437',
-        'https://www.digikey.com/en/products/filter/contacts-leadframe/416',
-        'https://www.digikey.com/en/products/filter/contacts-multi-purpose/336',
-        'https://www.digikey.com/en/products/filter/contacts-spring-loaded-and-pressure/311',
-        'https://www.digikey.com/en/products/filter/d-shaped-connectors-centronics/438',
-        'https://www.digikey.com/en/products/filter/d-sub-connectors/439',
-        'https://www.digikey.com/en/products/filter/d-sub-d-shaped-connectors-accessories-jackscrews/447',
-        'https://www.digikey.com/en/products/filter/d-sub-d-shaped-connectors-accessories/339',
-        'https://www.digikey.com/en/products/filter/d-sub-d-shaped-connectors-adapters/375',
-        'https://www.digikey.com/en/products/filter/d-sub-d-shaped-connectors-backshells-hoods/355',
-        'https://www.digikey.com/en/products/filter/d-sub-d-shaped-connectors-contacts/332',
-        'https://www.digikey.com/en/products/filter/d-sub-d-shaped-connectors-housings/321',
-        'https://www.digikey.com/en/products/filter/d-sub-d-shaped-connectors-terminators/383',
-        'https://www.digikey.com/en/products/filter/ffc-fpc-flat-flexible-connectors-accessories/350',
-        'https://www.digikey.com/en/products/filter/ffc-fpc-flat-flexible-connectors-contacts/344',
-        'https://www.digikey.com/en/products/filter/ffc-fpc-flat-flexible-connectors-housings/390',
-        'https://www.digikey.com/en/products/filter/ffc-fpc-flat-flexible-connectors/399',
-        'https://www.digikey.com/en/products/filter/fiber-optic-connectors-accessories/389',
-        'https://www.digikey.com/en/products/filter/fiber-optic-connectors-adapters/387',
-        'https://www.digikey.com/en/products/filter/fiber-optic-connectors-housings/445',
-        'https://www.digikey.com/en/products/filter/fiber-optic-connectors/440',
-        'https://www.digikey.com/en/products/filter/heavy-duty-connectors-accessories/358',
-        'https://www.digikey.com/en/products/filter/heavy-duty-connectors-assemblies/327',
-        'https://www.digikey.com/en/products/filter/heavy-duty-connectors-contacts/337',
-        'https://www.digikey.com/en/products/filter/heavy-duty-connectors-frames/362',
-        'https://www.digikey.com/en/products/filter/heavy-duty-connectors-housings-hoods-bases/363',
-        'https://www.digikey.com/en/products/filter/heavy-duty-connectors-inserts-modules/361',
-        'https://www.digikey.com/en/products/filter/keystone-accessories/426',
-        'https://www.digikey.com/en/products/filter/keystone-faceplates-frames/427',
-        'https://www.digikey.com/en/products/filter/keystone-inserts/428',
-        'https://www.digikey.com/en/products/filter/lgh-connectors/441',
-        'https://www.digikey.com/en/products/filter/memory-connectors-accessories/352',
-        'https://www.digikey.com/en/products/filter/memory-connectors-inline-module-sockets/413',
-        'https://www.digikey.com/en/products/filter/memory-connectors-pc-card-sockets/414',
-        'https://www.digikey.com/en/products/filter/memory-connectors-pc-cards-adapters/421',
-        'https://www.digikey.com/en/products/filter/modular-connectors-accessories/442',
-        'https://www.digikey.com/en/products/filter/modular-connectors-adapters/379',
-        'https://www.digikey.com/en/products/filter/modular-connectors-jacks-with-magnetics/365',
-        'https://www.digikey.com/en/products/filter/modular-connectors-jacks/366',
-        'https://www.digikey.com/en/products/filter/modular-connectors-plug-housings/403',
-        'https://www.digikey.com/en/products/filter/modular-connectors-plugs/367',
-        'https://www.digikey.com/en/products/filter/modular-connectors-wiring-blocks-accessories/417',
-        'https://www.digikey.com/en/products/filter/modular-connectors-wiring-blocks/418',
-        'https://www.digikey.com/en/products/filter/photovoltaic-solar-panel-connectors-accessories/424',
-        'https://www.digikey.com/en/products/filter/photovoltaic-solar-panel-connectors-contacts/423',
-        'https://www.digikey.com/en/products/filter/photovoltaic-solar-panel-connectors/326',
-        'https://www.digikey.com/en/products/filter/pluggable-connectors-accessories/346',
-        'https://www.digikey.com/en/products/filter/pluggable-connectors/443',
-        'https://www.digikey.com/en/products/filter/power-entry-connectors-accessories/341',
-        'https://www.digikey.com/en/products/filter/power-entry-connectors-inlets-outlets-modules/301',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-accessories/340',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-adapters/380',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-arrays-edge-type-mezzanine-board-to-board/308',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-board-in-direct-wire-to-board/317',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-board-spacers-stackers-board-to-board/400',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-contacts/331',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-free-hanging-panel-mount/316',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-male-pins/314',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-receptacles-female-sockets/315',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-headers-specialty-pin/318',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-housings/319',
-        'https://www.digikey.com/en/products/filter/rectangular-connectors-spring-loaded/408',
-        'https://www.digikey.com/en/products/filter/shunts-jumpers/304',
-        'https://www.digikey.com/en/products/filter/sockets-for-ics-transistors-accessories/410',
-        'https://www.digikey.com/en/products/filter/sockets-for-ics-transistors-adapters/411',
-        'https://www.digikey.com/en/products/filter/sockets-for-ics-transistors/409',
-        'https://www.digikey.com/en/products/filter/solid-state-lighting-connectors-accessories/432',
-        'https://www.digikey.com/en/products/filter/solid-state-lighting-connectors-contacts/446',
-        'https://www.digikey.com/en/products/filter/solid-state-lighting-connectors/444',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-accessories-jumpers/385',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-accessories-marker-strips/384',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-accessories-wire-ferrules/364',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-accessories/309',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-adapters/322',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-barrier-blocks/368',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-contacts/338',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-din-rail-channel/369',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-headers-plugs-and-sockets/370',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-interface-modules/431',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-panel-mount/425',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-power-distribution/412',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-specialized/433',
-        'https://www.digikey.com/en/products/filter/terminal-blocks-wire-to-board/371',
-        'https://www.digikey.com/en/products/filter/terminal-junction-systems/422',
-        'https://www.digikey.com/en/products/filter/terminal-strips-and-turret-boards/306',
-        'https://www.digikey.com/en/products/filter/terminals-accessories/415',
-        'https://www.digikey.com/en/products/filter/terminals-adapters/405',
-        'https://www.digikey.com/en/products/filter/terminals-barrel-bullet-connectors/393',
-        'https://www.digikey.com/en/products/filter/terminals-foil-connectors/402',
-        'https://www.digikey.com/en/products/filter/terminals-housings-boots/325',
-        'https://www.digikey.com/en/products/filter/terminals-knife-connectors/404',
-        'https://www.digikey.com/en/products/filter/terminals-magnetic-wire-connectors/353',
-        'https://www.digikey.com/en/products/filter/terminals-pc-pin-receptacles-socket-connectors/324',
-        'https://www.digikey.com/en/products/filter/terminals-pc-pin-single-post-connectors/323',
-        'https://www.digikey.com/en/products/filter/terminals-quick-connects-quick-disconnect-connectors/392',
-        'https://www.digikey.com/en/products/filter/terminals-rectangular-connectors/395',
-        'https://www.digikey.com/en/products/filter/terminals-ring-connectors/394',
-        'https://www.digikey.com/en/products/filter/terminals-screw-connectors/396',
-        'https://www.digikey.com/en/products/filter/terminals-solder-lug-connectors/401',
-        'https://www.digikey.com/en/products/filter/terminals-spade-connectors/391',
-        'https://www.digikey.com/en/products/filter/terminals-specialized-connectors/356',
-        'https://www.digikey.com/en/products/filter/terminals-turret-connectors/328',
-        'https://www.digikey.com/en/products/filter/terminals-wire-pin-connectors/397',
-        'https://www.digikey.com/en/products/filter/terminals-wire-splice-connectors/305',
-        'https://www.digikey.com/en/products/filter/terminals-wire-to-board-connectors/398',
-        'https://www.digikey.com/en/products/filter/usb-dvi-hdmi-connectors-accessories/347',
-        'https://www.digikey.com/en/products/filter/usb-dvi-hdmi-connectors-adapters/377',
-        'https://www.digikey.com/en/products/filter/usb-dvi-hdmi-connectors/312',
-    ]
-
-    short_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
-                  'https://www.digikey.com/en/products/filter/accessories/87']
+    # short_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
+    #               'https://www.digikey.com/en/products/filter/accessories/87']
 
     rand_urls = random.sample(all_urls, 6)
     run_crawlers(rand_urls, driver_path, download_dir, n_workers=2)
