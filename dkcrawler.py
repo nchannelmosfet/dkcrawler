@@ -41,6 +41,7 @@ def concat_data(in_files, out_path):
     combined_data.drop_duplicates(inplace=True)
     # drop malformed data
     combined_data.to_excel(out_path, index=False)
+    return combined_data
 
 
 def get_latest_file(_dir):
@@ -172,7 +173,10 @@ class DKCrawler:
                     break
             in_files = get_file_list(self.download_dir)
             out_path = os.path.join(self.download_dir, f'{self.product_category}_all.xlsx')
-            concat_data(in_files, out_path)
+            combined_data = concat_data(in_files, out_path)
+            if combined_data['Stock'].astype(str).str.contains('.'):
+                alert = 'ALERT!\nColumn "Stock" contains decimal numbers.\nColumn misaligned.\nFix data mannually. '
+                self.log_text += alert
         except:
             stack_trace = traceback.format_exc()
             self.log_text += stack_trace
@@ -220,11 +224,12 @@ def main():
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
     all_urls = extract_all_dk_product_category_urls(driver_path)
 
-    # short_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
-    #               'https://www.digikey.com/en/products/filter/accessories/87']
+    short_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
+                  'https://www.digikey.com/en/products/filter/accessories/87',
+                  'https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories/487']
 
     rand_urls = random.sample(all_urls, 6)
-    run_crawlers(rand_urls, driver_path, download_dir, n_workers=2)
+    run_crawlers(short_urls, driver_path, download_dir, n_workers=3)
 
 
 if __name__ == '__main__':
