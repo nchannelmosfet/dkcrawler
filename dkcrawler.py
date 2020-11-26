@@ -1,4 +1,4 @@
-from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.firefox.options import Options
 from selenium import webdriver
 import pandas as pd
 from pandas.errors import EmptyDataError, ParserError
@@ -59,7 +59,11 @@ def setup_browser(driver_path, download_dir=None):
     if download_dir:
         profile.set_preference("browser.download.dir", download_dir)
     profile.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
-    browser = webdriver.Firefox(executable_path=driver_path, firefox_profile=profile)
+
+    options = Options()
+    options.headless = True
+    browser = webdriver.Firefox(executable_path=driver_path, firefox_profile=profile, options=options)
+    browser.set_window_size(1920, 1080)
     browser.set_page_load_timeout(600)
     return browser
 
