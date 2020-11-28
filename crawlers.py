@@ -1,4 +1,5 @@
 from selenium.webdriver.firefox.options import Options
+from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 from urllib.parse import urljoin, urlsplit
 from utils import rand_delay, get_file_list, get_latest_file, concat_data
@@ -70,21 +71,36 @@ class VendorSubCategoryCrawler(BaseCrawler):
         subcategory_urls = []
         for url in category_urls:
             subcategory_urls += self.__parse_sub_category(url)
+        random.shuffle(subcategory_urls)
         return subcategory_urls
 
     def __parse_sub_category(self, category_url):
         self.crawler.get(category_url)
         cur_url = self.crawler.current_url
+        rand_delay(2, 3)
 
+        try:
+            print('Processing', cur_url)
+            min_qty = self.crawler.find_element_by_css_selector('[data-atag="tr-minQty"] > span > div:last-child').text
+            print('min_qty', min_qty)
+            if min_qty == 'Non-Stock':
+                return []
+        except NoSuchElementException:
+            pass
+
+        final_urls = []
         if 'filter' in cur_url:
-            final_urls = cur_url.split('?')[0:1]
+            final_urls += cur_url.split('?')[0:1]
+            return final_urls
+        elif 'products/detail' in cur_url:
+            return []
         else:
             a_elems = self.crawler.find_elements_by_css_selector('[data-testid="subcategories-items"]')
             subcategory_urls = self._join_urls(a_elems)
-            subcategory_urls = [url.split('?')[0] for url in subcategory_urls]
-            final_urls = subcategory_urls
-        rand_delay(2, 5)
-        return final_urls
+            for url in subcategory_urls:
+                urls = self.__parse_sub_category(url)
+                final_urls += urls
+            return final_urls
 
 
 class AllSubCategoryCrawler(BaseCrawler):
@@ -119,9 +135,9 @@ class DataCrawler(BaseCrawler):
     def __init__(self, driver_path, start_url, download_dir):
         super().__init__(driver_path, start_url, download_dir)
         url_split = self.start_url.split('/')
-        self.product_category = url_split[-2].replace('-', '_')
+        self.subcategory = url_split[-2].replace('-', '_')
         self.product_id = url_split[-1]
-        self.download_dir = os.path.join(download_dir, f'{self.product_category}_{self.product_id}')
+        self.download_dir = os.path.join(download_dir, f'{self.subcategory}_{self.product_id}')
         self.log_text = ''
         self._setup_crawler()
 
@@ -175,7 +191,7 @@ class DataCrawler(BaseCrawler):
     def __rename_file(self, cur_page):
         try:
             downloaded_file = get_latest_file(self.download_dir)
-            renamed_file = os.path.join(self.download_dir, f'{self.product_category}_{cur_page}.csv')
+            renamed_file = os.path.join(self.download_dir, f'{self.subcategory}_{cur_page}.csv')
             os.rename(downloaded_file, renamed_file)
 
             status = f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"\n\n'
@@ -203,8 +219,9 @@ class DataCrawler(BaseCrawler):
                 else:
                     break
             in_files = get_file_list(self.download_dir)
-            out_path = os.path.join(self.download_dir, f'{self.product_category}_all.xlsx')
-            combined_data = concat_data(in_files, out_path)
+            out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')
+            add_col = {'Subcategory': self.subcategory}
+            combined_data = concat_data(in_files, out_path, add_col)
             if any(combined_data['Stock'].astype(str).str.contains('.')):
                 alert = 'ALERT!\nColumn "Stock" contains decimal numbers.\nColumn misaligned.\nFix data mannually. '
                 self.log_text += alert
@@ -213,7 +230,7 @@ class DataCrawler(BaseCrawler):
             self.log_text += stack_trace
             traceback.print_exc()
         finally:
-            log_file_path = os.path.join(self.download_dir, f'{self.product_category}.log')
+            log_file_path = os.path.join(self.download_dir, f'{self.subcategory}.log')
             with open(log_file_path, 'w') as f:
                 f.write(self.log_text)
 

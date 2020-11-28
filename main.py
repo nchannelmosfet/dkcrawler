@@ -10,7 +10,6 @@ def test_vendor_subcategory_crawler():
     subcategory_urls = crawler.crawl()
     print(subcategory_urls)
     crawler.close()
-
     return subcategory_urls
 
 
@@ -40,15 +39,13 @@ def test_data_crawlers():
                   'https://www.digikey.com/en/products/filter/accessories/87',
                   'https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories/487']
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
-
     awsw_urls = test_vendor_subcategory_crawler()
-
-    data_crawler = DataCrawlers(driver_path, awsw_urls, download_dir, n_workers=2)
+    data_crawler = DataCrawlers(driver_path, awsw_urls, download_dir, n_workers=3)
     data_crawler.crawl_all()
 
 
 if __name__ == '__main__':
-    test_data_crawlers()
     # test_data_crawler()
     # test_all_subcategory_crawler()
     # test_vendor_subcategory_crawler()
+    test_data_crawlers()
