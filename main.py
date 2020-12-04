@@ -47,5 +47,5 @@ def test_data_crawlers():
 if __name__ == '__main__':
     # test_data_crawler()
     # test_all_subcategory_crawler()
-    # test_vendor_subcategory_crawler()
-    test_data_crawlers()
+    test_vendor_subcategory_crawler()
+    # test_data_crawlers()
