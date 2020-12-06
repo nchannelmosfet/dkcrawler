@@ -37,7 +37,7 @@ def concat_data(in_files, add_cols=None):
             try:
                 df = pd.read_csv(file)
             except ParserError:
-                df = pd.read_excel(file)
+                df = pd.read_excel(file, engine='openpyxl')
             dfs.append(df)
         except EmptyDataError:
             print(f'"{file}" is empty')

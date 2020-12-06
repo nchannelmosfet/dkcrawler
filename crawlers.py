@@ -258,6 +258,6 @@ class DataCrawlers:
                 executor.submit(self.__crawl, url)
         print('Crawl finished. ')
 
-        # in_files = get_file_list(self.download_dir, suffix='all.xlsx')
-        # out_path = os.path.join(self.download_dir, 'concat.xlsx')
-        # concat_data(in_files, out_path)
+        in_files = get_file_list(self.download_dir, suffix='all.xlsx')
+        out_path = os.path.join(self.download_dir, 'concat.xlsx')
+        concat_data(in_files, out_path)
