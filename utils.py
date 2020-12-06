@@ -30,7 +30,7 @@ def get_latest_file(_dir):
     return latest_file
 
 
-def concat_data(in_files, out_path, add_cols=None):
+def concat_data(in_files, add_cols=None):
     dfs = []
     for file in in_files:
         try:
@@ -46,7 +46,6 @@ def concat_data(in_files, out_path, add_cols=None):
     if len(add_cols):
         for col in add_cols:
             combined_data[col] = add_cols[col]
-    combined_data.to_excel(out_path, index=False)
     return combined_data
 
 
