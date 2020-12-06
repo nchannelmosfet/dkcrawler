@@ -166,6 +166,10 @@ def main():
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
     all_urls = extract_all_dk_product_category_urls(driver_path)
 
+# https://www.digikey.com/en/products/filter/barrel-power-cables/464
+# https://www.digikey.com/en/products/filter/accessories/87
+# https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories/487
+
     short_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
                   'https://www.digikey.com/en/products/filter/accessories/87',
                   'https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories/487']

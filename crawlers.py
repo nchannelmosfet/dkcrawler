@@ -8,6 +8,7 @@ import random
 import traceback
 import abc
 import os
+import pandas as pd
 
 
 class BaseCrawler(metaclass=abc.ABCMeta):
@@ -221,10 +222,13 @@ class DataCrawler(BaseCrawler):
             in_files = get_file_list(self.download_dir)
             out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')
             add_col = {'Subcategory': self.subcategory}
-            combined_data = concat_data(in_files, out_path, add_col)
-            if any(combined_data['Stock'].astype(str).str.contains('.')):
+            combined_data = concat_data(in_files, add_col)
+            if any(combined_data['Stock'].astype(str).str.contains('.', regex=False)):
                 alert = 'ALERT!\nColumn "Stock" contains decimal numbers.\nColumn misaligned.\nFix data mannually. '
                 self.log_text += alert
+            combined_data['Stock'] = combined_data['Stock'].astype(str).str.replace(',', '')
+            combined_data['Stock'] = pd.to_numeric(combined_data['Stock'], errors='coerce')
+            combined_data.to_excel(out_path, index=False)
         except:
             stack_trace = traceback.format_exc()
             self.log_text += stack_trace
@@ -252,7 +256,8 @@ class DataCrawlers:
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.n_workers, len(self.start_urls))) as executor:
             for url in self.start_urls:
                 executor.submit(self.__crawl, url)
+        print('Crawl finished. ')
 
-        in_files = get_file_list(self.download_dir, suffix='all.xlsx')
-        out_path = os.path.join(self.download_dir, 'concat.xlsx')
-        concat_data(in_files, out_path)
+        # in_files = get_file_list(self.download_dir, suffix='all.xlsx')
+        # out_path = os.path.join(self.download_dir, 'concat.xlsx')
+        # concat_data(in_files, out_path)
