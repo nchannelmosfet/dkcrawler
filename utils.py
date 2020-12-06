@@ -30,22 +30,19 @@ def get_latest_file(_dir):
     return latest_file
 
 
-def concat_data(in_files, add_cols=None):
+def concat_data(in_files):
     dfs = []
     for file in in_files:
         try:
             try:
                 df = pd.read_csv(file)
-            except ParserError:
+            except (ParserError, UnicodeDecodeError):
                 df = pd.read_excel(file, engine='openpyxl')
             dfs.append(df)
         except EmptyDataError:
             print(f'"{file}" is empty')
     combined_data = pd.concat(dfs, join='inner', ignore_index=True)
     combined_data.drop_duplicates(inplace=True)
-    if len(add_cols):
-        for col in add_cols:
-            combined_data[col] = add_cols[col]
     return combined_data
 
 
