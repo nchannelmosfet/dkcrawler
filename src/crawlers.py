@@ -2,7 +2,7 @@ from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 from urllib.parse import urljoin, urlsplit
-from utils import rand_delay, get_file_list, get_latest_file, concat_data
+from src.utils import rand_delay, get_file_list, get_latest_file, concat_data
 import concurrent.futures
 import random
 import traceback
@@ -131,6 +131,7 @@ class DataCrawler(BaseCrawler):
         'next-page': '[data-testid="btn-next-page"]',
         'max-page': '[data-testid="per-page-selector-container"] > div:last-child > span',
         'active-parts': '[data-testid="filter-1989-option-0"]',
+        'digikey.com': '[track-data="Choose Your Location – Stay on US Site"] > span'
     }
 
     def __init__(self, driver_path, start_url, download_dir):
@@ -146,6 +147,13 @@ class DataCrawler(BaseCrawler):
         files = get_file_list(self.download_dir)
         for f in files:
             os.remove(f)
+
+    def __select_digikey_com(self):
+        try:
+            self.crawler.find_element_by_css_selector(self.__selectors['digikey.com']).click()
+        except NoSuchElementException:
+            pass
+        rand_delay(1, 3)
 
     def __set_page_size_100(self):
         self.crawler.find_element_by_css_selector(self.__selectors['per-page-selector']).click()
@@ -204,6 +212,7 @@ class DataCrawler(BaseCrawler):
     def crawl(self):
         self.__del_prev_files()
         self.crawler.get(self.start_url)
+        self.__select_digikey_com()
         self.__set_page_size_100()
         self.__select_in_stock()
         max_page = self.__get_max_page()

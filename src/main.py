@@ -1,4 +1,4 @@
-from crawlers import VendorSubCategoryCrawler, AllSubCategoryCrawler, DataCrawler, DataCrawlers
+from src.crawlers import VendorSubCategoryCrawler, AllSubCategoryCrawler, DataCrawler, DataCrawlers
 import os
 
 

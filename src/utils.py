@@ -23,11 +23,22 @@ def get_file_list(_dir, suffix=None):
     return files
 
 
-def get_latest_file(_dir):
-    files = get_file_list(_dir)
+def get_latest_file(root):
+    files = get_file_list(root)
     files = [f for f in files if not re.search(r'_\d+$', os.path.splitext(f)[0])]
     latest_file = max(files, key=os.path.getctime)
     return latest_file
+
+
+def get_latest_dir_index(root):
+    dirs = os.listdir(root)
+    dirs = [os.path.join(root, _dir) for _dir in dirs]
+    try:
+        latest_dir = max(dirs, key=os.path.getctime)
+        latest_index = int(latest_dir.split('\\')[-1].replace('session', ''))
+        return latest_index
+    except ValueError:
+        return 0
 
 
 def concat_data(in_files):
