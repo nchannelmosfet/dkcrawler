@@ -30,9 +30,9 @@ def get_latest_file(root):
     return latest_file
 
 
-def get_latest_dir_index(root):
+def get_latest_session_index(root):
     dirs = os.listdir(root)
-    dirs = [os.path.join(root, _dir) for _dir in dirs]
+    dirs = [os.path.join(root, _dir) for _dir in dirs if re.search(r'session\d+$', _dir, re.IGNORECASE)]
     try:
         latest_dir = max(dirs, key=os.path.getctime)
         latest_index = int(latest_dir.split('\\')[-1].replace('session', ''))
