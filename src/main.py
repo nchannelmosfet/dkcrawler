@@ -29,7 +29,7 @@ def test_data_crawler():
     driver_path = 'geckodriver.exe'
     start_url = 'https://www.digikey.com/en/products/filter/barrel-power-cables/464'
     download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
-    crawler = DataCrawler(driver_path, start_url, download_dir)
+    crawler = DataCrawler(driver_path, start_url, download_dir, headless=True)
     crawler.crawl()
     crawler.close()
 
@@ -44,7 +44,7 @@ def test_data_crawlers():
     download_dir = os.path.join(dk_data_dir, f'session{session_index}')
     os.makedirs(download_dir, exist_ok=True)
     # awsw_urls = test_vendor_subcategory_crawler()
-    data_crawler = DataCrawlers(driver_path, start_urls, download_dir, n_workers=3)
+    data_crawler = DataCrawlers(driver_path, start_urls, download_dir, n_workers=3, headless=True)
     data_crawler.crawl_all()
 
 

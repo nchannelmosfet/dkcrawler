@@ -271,6 +271,6 @@ class DataCrawlers:
 
     def combine_subcategory_data(self):
         in_files = get_file_list(self.download_dir, suffix='all.xlsx')
-        out_path = os.path.join(self.download_dir, 'concat.xlsx')
+        out_path = os.path.join(self.download_dir, 'combine.xlsx')
         df = concat_data(in_files)
         df.to_excel(out_path)
