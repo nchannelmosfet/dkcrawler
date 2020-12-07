@@ -12,10 +12,11 @@ import pandas as pd
 
 
 class BaseCrawler(metaclass=abc.ABCMeta):
-    def __init__(self, driver_path, start_url, download_dir=None):
+    def __init__(self, driver_path, start_url, download_dir=None, headless=True):
         self.driver_path = driver_path
         self.start_url = start_url.split('?')[0]
         self.download_dir = download_dir
+        self.headless = headless
         self.crawler = None
 
     def _scroll_to_bottom(self):
@@ -45,7 +46,7 @@ class BaseCrawler(metaclass=abc.ABCMeta):
         profile.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
 
         options = Options()
-        options.headless = True
+        options.headless = self.headless
         crawler = webdriver.Firefox(executable_path=self.driver_path, firefox_profile=profile, options=options)
         crawler.set_window_size(1600, 900)
         crawler.set_page_load_timeout(600)
@@ -134,8 +135,8 @@ class DataCrawler(BaseCrawler):
         'digikey.com': '[track-data="Choose Your Location – Stay on US Site"] > span'
     }
 
-    def __init__(self, driver_path, start_url, download_dir):
-        super().__init__(driver_path, start_url, download_dir)
+    def __init__(self, driver_path, start_url, download_dir, headless):
+        super().__init__(driver_path, start_url, download_dir, headless)
         url_split = self.start_url.split('/')
         self.subcategory = url_split[-2].replace('-', '_')
         self.product_id = url_split[-1]
@@ -249,15 +250,16 @@ class DataCrawler(BaseCrawler):
 
 
 class DataCrawlers:
-    def __init__(self, driver_path, start_urls, download_dir, n_workers=1):
+    def __init__(self, driver_path, start_urls, download_dir, n_workers, headless):
         self.driver_path = driver_path
         self.start_urls = start_urls
         random.shuffle(self.start_urls)
         self.download_dir = download_dir
         self.n_workers = n_workers
+        self.headless = headless
 
     def __crawl(self, start_url):
-        crawler = DataCrawler(self.driver_path, start_url, self.download_dir)
+        crawler = DataCrawler(self.driver_path, start_url, self.download_dir, self.headless)
         crawler.crawl()
         crawler.close()
 

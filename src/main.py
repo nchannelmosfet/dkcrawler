@@ -1,4 +1,5 @@
 from src.crawlers import VendorSubCategoryCrawler, AllSubCategoryCrawler, DataCrawler, DataCrawlers
+from src.utils import get_latest_session_index
 import os
 
 
@@ -38,7 +39,10 @@ def test_data_crawlers():
     start_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
                   'https://www.digikey.com/en/products/filter/accessories/87',
                   'https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories/487']
-    download_dir = os.path.join(os.getcwd(), 'DK_Data')
+    dk_data_dir = os.path.join(os.path.dirname(os.getcwd()), 'DK_Data')
+    session_index = get_latest_session_index(dk_data_dir) + 1
+    download_dir = os.path.join(dk_data_dir, f'session{session_index}')
+    os.makedirs(download_dir, exist_ok=True)
     # awsw_urls = test_vendor_subcategory_crawler()
     data_crawler = DataCrawlers(driver_path, start_urls, download_dir, n_workers=3)
     data_crawler.crawl_all()
