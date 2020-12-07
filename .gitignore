@@ -21,7 +21,7 @@ sdist/
 var/
 .vs/
 wheels/
-DK_Data/
+DK_Data*/
 *.egg-info/
 .installed.cfg
 *.egg
