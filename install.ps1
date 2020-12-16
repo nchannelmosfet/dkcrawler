@@ -1,3 +1,6 @@
+New-Item -ItemType Directory -Force -Path '.\DK_Data_By_URLs'
+New-Item -ItemType Directory -Force -Path '.\DK_Data_By_Vendor'
+
 py -3 -m pip install virtualenv
 py -3 -m virtualenv venv
 
