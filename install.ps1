@@ -16,7 +16,7 @@ if (!(Test-Path -path $gecko_path)) {
 .\venv\Scripts\python.exe -m jupyter labextension install @jupyter-widgets/jupyterlab-manager
 .\venv\Scripts\python.exe -m jupyter lab build
 
-$items_to_hide = ".\src", ".\.gitignore", ".\.git", "requirements.txt", "AppCrawlByURLs.ipynb", "AppCrawlByVendor.ipynb", ".\venv", ".\idea", ".\.ipynb_checkpoints"
+$items_to_hide = ".\src", ".\.gitignore", ".\.git", "requirements.txt", ".\venv", ".\idea", ".\.ipynb_checkpoints"
 foreach ($path in $items_to_hide) {
 	if (Test-Path -path $path){
 		$item = Get-Item $path -Force
