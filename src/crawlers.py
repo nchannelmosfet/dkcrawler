@@ -122,6 +122,7 @@ class AllSubCategoryCrawler(BaseCrawler):
 
 class DataCrawler(BaseCrawler):
     __selectors = {
+        'cookie_ok': 'div.cookie-wrapper a.secondary.button',
         'per-page-selector': '[data-testid="per-page-selector"] > div.MuiSelect-root',
         'per-page-100': '[data-testid="per-page-100"]',
         'in-stock': '[data-testid="filter--2-option-5"] input[type="checkbox"]',
@@ -132,7 +133,8 @@ class DataCrawler(BaseCrawler):
         'next-page': '[data-testid="btn-next-page"]',
         'max-page': '[data-testid="per-page-selector-container"] > div:last-child > span',
         'active-parts': '[data-testid="filter-1989-option-0"]',
-        'digikey.com': '[track-data="Choose Your Location – Stay on US Site"] > span'
+        'digikey.com': '[track-data="Choose Your Location – Stay on US Site"] > span',
+        'msg_close': 'a.header-shipping-msg-close'
     }
 
     def __init__(self, driver_path, start_url, download_dir, headless):
@@ -152,6 +154,20 @@ class DataCrawler(BaseCrawler):
     def __select_digikey_com(self):
         try:
             self.crawler.find_element_by_css_selector(self.__selectors['digikey.com']).click()
+        except NoSuchElementException:
+            pass
+        rand_delay(1, 3)
+
+    def __cookie_ok(self):
+        try:
+            self.crawler.find_element_by_css_selector(self.__selectors['cookie_ok']).click()
+        except NoSuchElementException:
+            pass
+        rand_delay(1, 3)
+
+    def __msg_close(self):
+        try:
+            self.crawler.find_element_by_css_selector(self.__selectors['msg_close']).click()
         except NoSuchElementException:
             pass
         rand_delay(1, 3)
@@ -213,10 +229,12 @@ class DataCrawler(BaseCrawler):
     def crawl(self):
         self.__del_prev_files()
         self.crawler.get(self.start_url)
+        self.__cookie_ok()
         self.__select_digikey_com()
         self.__set_page_size_100()
         self.__select_in_stock()
         max_page = self.__get_max_page()
+        self.__msg_close()
 
         try:
             cur_page = 1
