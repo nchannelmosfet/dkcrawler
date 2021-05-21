@@ -50,6 +50,7 @@ class BaseCrawler(metaclass=abc.ABCMeta):
         crawler = webdriver.Firefox(executable_path=self.driver_path, firefox_profile=profile, options=options)
         crawler.set_window_size(1600, 900)
         crawler.set_page_load_timeout(600)
+        crawler.maximize_window()
         self.crawler = crawler
 
     def close(self):
@@ -242,10 +243,9 @@ class DataCrawler(BaseCrawler):
                 self.__click_download()
                 self.__rename_file(cur_page)
                 cur_page += 1
-
-                if cur_page <= max_page:
+                try:
                     self.__click_next_page()
-                else:
+                except NoSuchElementException:
                     break
             in_files = get_file_list(self.download_dir)
             out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')
