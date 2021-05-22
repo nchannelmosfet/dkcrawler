@@ -1,5 +1,5 @@
 from selenium.webdriver.firefox.options import Options
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 from selenium import webdriver
 from urllib.parse import urljoin, urlsplit
 from src.utils import rand_delay, get_file_list, get_latest_file, concat_data
@@ -126,12 +126,14 @@ class DataCrawler(BaseCrawler):
         'cookie_ok': 'div.cookie-wrapper a.secondary.button',
         'per-page-selector': '[data-testid="per-page-selector"] > div.MuiSelect-root',
         'per-page-100': '[data-testid="per-page-100"]',
-        'in-stock': '[data-testid="filter--2-option-5"] input[type="checkbox"]',
+        'in-stock': '[data-testid="filter--2-option-5"]',
         'normally-stocking': '[data-testid="filter--2-option-9"] input[type="checkbox"]',
         'apply-all': '[data-testid="apply-all-button"]',
         'popup-trigger': '[data-testid="download-table-popup-trigger-button"]',
         'download': '[data-testid="download-table-button"]',
+        'cur-page': '[data-testid="pagination-container"] > button[disabled]',
         'next-page': '[data-testid="btn-next-page"]',
+        'next-page-alt': '[data-testid="pagination-container"] > button[disabled] + button',
         'max-page': '[data-testid="per-page-selector-container"] > div:last-child > span',
         'active-parts': '[data-testid="filter-1989-option-0"]',
         'digikey.com': '[track-data="Choose Your Location – Stay on US Site"] > span',
@@ -146,6 +148,7 @@ class DataCrawler(BaseCrawler):
         self.download_dir = os.path.join(download_dir, f'{self.subcategory}_{self.product_id}')
         self.log_text = ''
         self._setup_crawler()
+        self.downloaded_pages = set()
 
     def __del_prev_files(self):
         files = get_file_list(self.download_dir)
@@ -211,8 +214,14 @@ class DataCrawler(BaseCrawler):
         rand_delay(5, 10)
 
     def __click_next_page(self):
-        btn_next_page = self.crawler.find_element_by_css_selector(self.__selectors['next-page'])
-        btn_next_page.click()
+        btn_next_pages = self.crawler.find_elements_by_css_selector(self.__selectors['next-page'])
+        btn_next_pages += self.crawler.find_elements_by_css_selector(self.__selectors['next-page-alt'])
+        for btn_next_page in btn_next_pages:
+            try:
+                btn_next_page.click()
+                break
+            except ElementClickInterceptedException:
+                pass
         rand_delay(5, 10)
 
     def __rename_file(self, cur_page):
@@ -227,6 +236,10 @@ class DataCrawler(BaseCrawler):
         except ValueError:
             pass
 
+    def __get_cur_page(self):
+        cur_page = int(self.crawler.find_element_by_css_selector(self.__selectors['cur-page']).text)
+        return cur_page
+
     def crawl(self):
         self.__del_prev_files()
         self.crawler.get(self.start_url)
@@ -238,11 +251,18 @@ class DataCrawler(BaseCrawler):
         self.__msg_close()
 
         try:
-            cur_page = 1
             while True:
-                self.__click_download()
-                self.__rename_file(cur_page)
-                cur_page += 1
+                cur_page = self.__get_cur_page()
+                if cur_page not in self.downloaded_pages:
+                    self.__click_download()
+                    self.__rename_file(cur_page)
+                    self.downloaded_pages.add(cur_page)
+                else:
+                    page_downloaded_msg = f'Page {cur_page} has already been downloaded. \n'
+                    self.log_text += page_downloaded_msg
+                    print(page_downloaded_msg)
+                if len(self.downloaded_pages) == max_page:
+                    break
                 try:
                     self.__click_next_page()
                 except NoSuchElementException:
@@ -261,6 +281,7 @@ class DataCrawler(BaseCrawler):
             stack_trace = traceback.format_exc()
             self.log_text += stack_trace
             traceback.print_exc()
+            raise
         finally:
             log_file_path = os.path.join(self.download_dir, f'{self.subcategory}.log')
             with open(log_file_path, 'w') as f:

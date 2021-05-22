@@ -6,8 +6,11 @@ py -3 -m virtualenv venv
 
 # download and unzip Geckodriver for using selenium webdriver with Firefox
 $gecko_path = '.\src\geckodriver.exe'
+if ((Test-Path -path $gecko_path)) {
+	Remove-Item $gecko_path
+}
 if (!(Test-Path -path $gecko_path)) {
-	$gecko_url = "https://github.com/mozilla/geckodriver/releases/download/v0.26.0/geckodriver-v0.26.0-win64.zip"
+	$gecko_url = "https://github.com/mozilla/geckodriver/releases/download/v0.29.1/geckodriver-v0.29.1-win64.zip"
 	$gecko_zip = '.\src\geckodriver.zip'
 	Invoke-WebRequest -Uri $gecko_url -OutFile $gecko_zip
 	Expand-Archive -Path $gecko_zip -DestinationPath '.\src'
