@@ -266,7 +266,9 @@ class DataCrawler(BaseCrawler):
                     print(page_downloaded_msg)
                     download_tries += 1
                     if download_tries > max_download_tries:
+                        download_tries_msg = f'Download tries exceeded max {max_download_tries} times. Restart job. '
                         print(f'Download tries exceeded max {max_download_tries} times. Restart job. ')
+                        self.log_text += download_tries_msg
                         self.crawler.get(self.start_url)
                 if len(self.downloaded_pages) == max_page:
                     break
