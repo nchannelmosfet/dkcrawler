@@ -250,6 +250,8 @@ class DataCrawler(BaseCrawler):
         max_page = self.__get_max_page()
         self.__msg_close()
 
+        download_tries = 0
+        max_download_tries = 5
         try:
             while True:
                 cur_page = self.__get_cur_page()
@@ -257,10 +259,15 @@ class DataCrawler(BaseCrawler):
                     self.__click_download()
                     self.__rename_file(cur_page)
                     self.downloaded_pages.add(cur_page)
+                    download_tries = 0
                 else:
                     page_downloaded_msg = f'Page {cur_page} has already been downloaded. \n'
                     self.log_text += page_downloaded_msg
                     print(page_downloaded_msg)
+                    download_tries += 1
+                    if download_tries > max_download_tries:
+                        print(f'Download tries exceeded max {max_download_tries} times. Restart job. ')
+                        self.crawler.get(self.start_url)
                 if len(self.downloaded_pages) == max_page:
                     break
                 try:
