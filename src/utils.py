@@ -53,7 +53,7 @@ def concat_data(in_files):
         except EmptyDataError:
             print(f'"{file}" is empty')
     combined_data = pd.concat(dfs, join='inner', ignore_index=True)
-    combined_data.drop_duplicates(inplace=True)
+    # combined_data.drop_duplicates(inplace=True)
     return combined_data
 
 
