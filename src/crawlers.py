@@ -187,9 +187,10 @@ class DataCrawler(BaseCrawler):
         in_stock.click()
         rand_delay(1, 3)
 
-        normally_stocking = self.crawler.find_element_by_css_selector(self.__selectors['normally-stocking'])
-        normally_stocking.click()
-        rand_delay(1, 3)
+        # unselect normally stocking
+        # normally_stocking = self.crawler.find_element_by_css_selector(self.__selectors['normally-stocking'])
+        # normally_stocking.click()
+        # rand_delay(1, 3)
 
         apply_all = self.crawler.find_element_by_css_selector(self.__selectors['apply-all'])
         apply_all.click()
