@@ -1,6 +1,9 @@
 from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from urllib.parse import urljoin, urlsplit
 from src.utils import rand_delay, get_file_list, get_latest_file, concat_data
 import concurrent.futures
@@ -36,8 +39,22 @@ class BaseCrawler(metaclass=abc.ABCMeta):
         full_urls = [urljoin(base_url, url) for url in relative_urls]
         return full_urls
 
+    @staticmethod
+    def get_firefox_profile():
+        try:
+            firefox_profile_dir = os.path.join(
+                os.path.expanduser('~'),
+                r'AppData\Roaming\Mozilla\Firefox\Profiles'
+            )
+            firefox_profile = [_dir for _dir in os.listdir(firefox_profile_dir) if _dir.endswith('default-release')][0]
+            full_firefox_profile = os.path.join(firefox_profile_dir, firefox_profile)
+            return full_firefox_profile
+        except Exception as ex:
+            print(ex)
+            return
+
     def setup_crawler(self):
-        profile = webdriver.FirefoxProfile()
+        profile = webdriver.FirefoxProfile(self.get_firefox_profile())
         profile.set_preference("browser.download.folderList", 2)
         profile.set_preference("browser.download.manager.showWhenStarting", False)
 
@@ -138,7 +155,8 @@ class DataCrawler(BaseCrawler):
         'active-parts': '[data-testid="filter-1989-option-0"]',
         'digikey.com': '[track-data="Choose Your Location – Stay on US Site"] > span',
         'msg_close': 'a.header-shipping-msg-close',
-        'btn-first-page': '[data-testid="btn-first-page"]'
+        'btn-first-page': '[data-testid="btn-first-page"]',
+        'dkpn-sort-asc': 'button[data-testid="sort--104-asc"] > svg',
     }
 
     def __init__(self, driver_path, start_url, download_dir, headless):
@@ -213,7 +231,7 @@ class DataCrawler(BaseCrawler):
         rand_delay(1, 3)
         download_table_button = self.crawler.find_element_by_css_selector(self.selectors['download'])
         download_table_button.click()
-        rand_delay(5, 10)
+        rand_delay(5, 8)
 
     def click_next_page(self):
         btn_next_pages = self.crawler.find_elements_by_css_selector(self.selectors['next-page'])
@@ -224,7 +242,7 @@ class DataCrawler(BaseCrawler):
                 break
             except ElementClickInterceptedException:
                 pass
-        rand_delay(8, 10)
+        rand_delay(5, 8)
 
     def rename_file(self, cur_page):
         try:
@@ -239,13 +257,31 @@ class DataCrawler(BaseCrawler):
             pass
 
     def get_cur_page(self):
-        cur_page = int(self.crawler.find_element_by_css_selector(self.selectors['cur-page']).text)
+        rand_delay(1, 2)
+        cur_page = int(self.crawler.find_element_by_css_selector(self.selectors['cur-page']).get_attribute('value'))
         return cur_page
 
     def go_first_page(self):
         btn_first_page = self.crawler.find_element_by_css_selector(self.selectors['btn-first-page'])
         btn_first_page.click()
         rand_delay(1, 3)
+
+    def dkpn_sort_asc(self):
+        rand_delay(1, 3)
+        pos_offset = 900
+        self.crawler.execute_script(f"window.scrollTo(0, {pos_offset});")
+        sort_asc = WebDriverWait(self.crawler, 20).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors['dkpn-sort-asc']))
+        )
+        sort_asc.click()
+        rand_delay(1, 3)
+
+    def scroll_up_down(self):
+        pos_offset = 200
+        neg_offset = -200
+        self.crawler.execute_script(f"window.scrollTo(0, {pos_offset});")
+        rand_delay(1, 3)
+        self.crawler.execute_script(f"window.scrollTo(0, {neg_offset});")
 
     def crawl(self):
         self.del_prev_files()
@@ -256,9 +292,11 @@ class DataCrawler(BaseCrawler):
         self.select_in_stock()
         max_page = self.get_max_page()
         self.msg_close()
+        self.dkpn_sort_asc()
 
         download_tries = 0
         max_download_tries = 10
+
         try:
             while True:
                 cur_page = self.get_cur_page()
@@ -269,6 +307,7 @@ class DataCrawler(BaseCrawler):
                     download_tries = 0
                 else:
                     page_downloaded_msg = f'Page {cur_page} has already been downloaded. \n'
+                    self.scroll_up_down()
                     self.log_text += page_downloaded_msg
                     print(page_downloaded_msg)
                     download_tries += 1
@@ -278,11 +317,13 @@ class DataCrawler(BaseCrawler):
                         self.log_text += download_tries_msg
                         self.go_first_page()
                         download_tries = 0
-                if len(self.downloaded_pages) == max_page:
+                if len(self.downloaded_pages) == max_page or cur_page == max_page:
                     break
                 try:
                     self.click_next_page()
-                except NoSuchElementException:
+                except NoSuchElementException as ex:
+                    print(ex)
+                    print('No next page')
                     break
             in_files = get_file_list(self.download_dir)
             out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')

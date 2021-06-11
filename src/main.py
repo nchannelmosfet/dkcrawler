@@ -1,5 +1,5 @@
 from src.crawlers import VendorSubCategoryCrawler, AllSubCategoryCrawler, DataCrawler, DataCrawlers
-from src.utils import get_latest_session_index
+from src.utils import get_latest_session_index, get_file_list, concat_data
 import os
 
 
@@ -36,15 +36,15 @@ def test_data_crawler():
 
 def test_data_crawlers():
     driver_path = 'geckodriver.exe'
-    start_urls = ['https://www.digikey.com/en/products/filter/barrel-power-cables/464',
-                  'https://www.digikey.com/en/products/filter/accessories/87',
-                  'https://www.digikey.com/en/products/filter/wire-ducts-raceways-accessories/487']
-    dk_data_dir = os.path.join(os.path.dirname(os.getcwd()), 'DK_Data')
+    # https://www.digikey.com/en/products/filter/thermal-pads-sheets/218
+    # 'https://www.digikey.com/en/products/filter/thermal-heat-sinks/219'
+    start_urls = ['https://www.digikey.com/en/products/filter/thermal-pads-sheets/218']
+    dk_data_dir = os.path.join(os.path.dirname(os.getcwd()), 'DK_Data_By_URLs')
     session_index = get_latest_session_index(dk_data_dir) + 1
     download_dir = os.path.join(dk_data_dir, f'session{session_index}')
     os.makedirs(download_dir, exist_ok=True)
     # awsw_urls = test_vendor_subcategory_crawler()
-    data_crawler = DataCrawlers(driver_path, start_urls, download_dir, n_workers=3, headless=True)
+    data_crawler = DataCrawlers(driver_path, start_urls, download_dir, n_workers=3, headless=False)
     data_crawler.crawl_all()
 
 
@@ -52,4 +52,11 @@ if __name__ == '__main__':
     # test_data_crawler()
     # test_all_subcategory_crawler()
     # test_vendor_subcategory_crawler()
+
     test_data_crawlers()
+
+    # _dir = r'C:\Users\wujun\OneDrive\Desktop\DKCrawler\DK_Data_By_URLs\session3\thermal_heat_sinks_219'
+    # in_files = get_file_list(_dir, suffix='.csv')
+    # combined_data = concat_data(in_files)
+    # outfile = os.path.join(_dir, 'thermal_heat_sinks_all.xlsx')
+    # combined_data.to_excel(outfile)
