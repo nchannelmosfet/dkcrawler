@@ -55,7 +55,6 @@ if __name__ == '__main__':
 
     test_data_crawlers()
 
-    # _dir = r'C:\Users\wujun\OneDrive\Desktop\DKCrawler\DK_Data_By_URLs\session3\thermal_heat_sinks_219'
     # in_files = get_file_list(_dir, suffix='.csv')
     # combined_data = concat_data(in_files)
     # outfile = os.path.join(_dir, 'thermal_heat_sinks_all.xlsx')
