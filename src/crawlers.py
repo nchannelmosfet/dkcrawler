@@ -19,7 +19,7 @@ class BaseCrawler(metaclass=abc.ABCMeta):
         self.headless = headless
         self.crawler = None
 
-    def _scroll_to_bottom(self):
+    def scroll_to_bottom(self):
         offset = 0
         while True:
             old_y_offset = self.crawler.execute_script("return window.pageYOffset;")
@@ -30,13 +30,13 @@ class BaseCrawler(metaclass=abc.ABCMeta):
             if old_y_offset == new_y_offset:
                 break
 
-    def _join_urls(self, a_elems):
+    def join_urls(self, a_elems):
         relative_urls = [a.get_attribute('href') for a in a_elems]
         base_url = "{0.scheme}://{0.netloc}/".format(urlsplit(self.start_url))
         full_urls = [urljoin(base_url, url) for url in relative_urls]
         return full_urls
 
-    def _setup_crawler(self):
+    def setup_crawler(self):
         profile = webdriver.FirefoxProfile()
         profile.set_preference("browser.download.folderList", 2)
         profile.set_preference("browser.download.manager.showWhenStarting", False)
@@ -65,19 +65,19 @@ class BaseCrawler(metaclass=abc.ABCMeta):
 class VendorSubCategoryCrawler(BaseCrawler):
     def __init__(self, driver_path, start_url, download_dir):
         super().__init__(driver_path, start_url, download_dir)
-        self._setup_crawler()
+        self.setup_crawler()
 
     def crawl(self):
         self.crawler.get(self.start_url)
         a_elems = self.crawler.find_elements_by_css_selector('#product-categories li > a')
-        category_urls = self._join_urls(a_elems)
+        category_urls = self.join_urls(a_elems)
         subcategory_urls = []
         for url in category_urls:
-            subcategory_urls += self.__parse_sub_category(url)
+            subcategory_urls += self.parse_sub_category(url)
         random.shuffle(subcategory_urls)
         return subcategory_urls
 
-    def __parse_sub_category(self, category_url):
+    def parse_sub_category(self, category_url):
         self.crawler.get(category_url)
         cur_url = self.crawler.current_url
         rand_delay(2, 3)
@@ -99,9 +99,9 @@ class VendorSubCategoryCrawler(BaseCrawler):
             return []
         else:
             a_elems = self.crawler.find_elements_by_css_selector('[data-testid="subcategories-items"]')
-            subcategory_urls = self._join_urls(a_elems)
+            subcategory_urls = self.join_urls(a_elems)
             for url in subcategory_urls:
-                urls = self.__parse_sub_category(url)
+                urls = self.parse_sub_category(url)
                 final_urls += urls
             return final_urls
 
@@ -109,20 +109,20 @@ class VendorSubCategoryCrawler(BaseCrawler):
 class AllSubCategoryCrawler(BaseCrawler):
     def __init__(self, driver_path, start_url, download_dir):
         super().__init__(driver_path, start_url, download_dir)
-        self._setup_crawler()
+        self.setup_crawler()
 
     def crawl(self):
         self.crawler.get(self.start_url)
         rand_delay(5, 10)
-        self._scroll_to_bottom()
+        self.scroll_to_bottom()
         a_elems = self.crawler.find_elements_by_css_selector('[data-testid="subcategories-items"]')
-        subcategory_urls = self._join_urls(a_elems)
+        subcategory_urls = self.join_urls(a_elems)
         rand_delay(2, 5)
         return subcategory_urls
 
 
 class DataCrawler(BaseCrawler):
-    __selectors = {
+    selectors = {
         'cookie_ok': 'div.cookie-wrapper a.secondary.button',
         'per-page-selector': '[data-testid="per-page-selector"] > div.MuiSelect-root',
         'per-page-100': '[data-testid="per-page-100"]',
@@ -137,7 +137,8 @@ class DataCrawler(BaseCrawler):
         'max-page': '[data-testid="per-page-selector-container"] > div:last-child > span',
         'active-parts': '[data-testid="filter-1989-option-0"]',
         'digikey.com': '[track-data="Choose Your Location – Stay on US Site"] > span',
-        'msg_close': 'a.header-shipping-msg-close'
+        'msg_close': 'a.header-shipping-msg-close',
+        'btn-first-page': '[data-testid="btn-first-page"]'
     }
 
     def __init__(self, driver_path, start_url, download_dir, headless):
@@ -147,43 +148,43 @@ class DataCrawler(BaseCrawler):
         self.product_id = url_split[-1]
         self.download_dir = os.path.join(download_dir, f'{self.subcategory}_{self.product_id}')
         self.log_text = ''
-        self._setup_crawler()
+        self.setup_crawler()
         self.downloaded_pages = set()
 
-    def __del_prev_files(self):
+    def del_prev_files(self):
         files = get_file_list(self.download_dir)
         for f in files:
             os.remove(f)
 
-    def __select_digikey_com(self):
+    def select_digikey_com(self):
         try:
-            self.crawler.find_element_by_css_selector(self.__selectors['digikey.com']).click()
+            self.crawler.find_element_by_css_selector(self.selectors['digikey.com']).click()
         except NoSuchElementException:
             pass
         rand_delay(1, 3)
 
-    def __cookie_ok(self):
+    def cookie_ok(self):
         try:
-            self.crawler.find_element_by_css_selector(self.__selectors['cookie_ok']).click()
+            self.crawler.find_element_by_css_selector(self.selectors['cookie_ok']).click()
         except NoSuchElementException:
             pass
         rand_delay(1, 3)
 
-    def __msg_close(self):
+    def msg_close(self):
         try:
-            self.crawler.find_element_by_css_selector(self.__selectors['msg_close']).click()
+            self.crawler.find_element_by_css_selector(self.selectors['msg_close']).click()
         except NoSuchElementException:
             pass
         rand_delay(1, 3)
 
-    def __set_page_size_100(self):
-        self.crawler.find_element_by_css_selector(self.__selectors['per-page-selector']).click()
+    def set_page_size_100(self):
+        self.crawler.find_element_by_css_selector(self.selectors['per-page-selector']).click()
         rand_delay(1, 3)
-        self.crawler.find_element_by_css_selector(self.__selectors['per-page-100']).click()
+        self.crawler.find_element_by_css_selector(self.selectors['per-page-100']).click()
         rand_delay(1, 3)
 
-    def __select_in_stock(self):
-        in_stock = self.crawler.find_element_by_css_selector(self.__selectors['in-stock'])
+    def select_in_stock(self):
+        in_stock = self.crawler.find_element_by_css_selector(self.selectors['in-stock'])
         in_stock.click()
         rand_delay(1, 3)
 
@@ -192,40 +193,40 @@ class DataCrawler(BaseCrawler):
         # normally_stocking.click()
         # rand_delay(1, 3)
 
-        apply_all = self.crawler.find_element_by_css_selector(self.__selectors['apply-all'])
+        apply_all = self.crawler.find_element_by_css_selector(self.selectors['apply-all'])
         apply_all.click()
         rand_delay(1, 3)
 
-    def __select_active(self):
-        active_parts = self.crawler.find_element_by_css_selector(self.__selectors['active_parts'])
+    def select_active(self):
+        active_parts = self.crawler.find_element_by_css_selector(self.selectors['active_parts'])
         active_parts.click()
         rand_delay(1, 3)
 
-    def __get_max_page(self):
-        max_page = self.crawler.find_element_by_css_selector(self.__selectors['max-page']).text
+    def get_max_page(self):
+        max_page = self.crawler.find_element_by_css_selector(self.selectors['max-page']).text
         max_page = int(max_page.split('/')[-1])
         return max_page
 
-    def __click_download(self):
-        popup_trigger = self.crawler.find_element_by_css_selector(self.__selectors['popup-trigger'])
+    def click_download(self):
+        popup_trigger = self.crawler.find_element_by_css_selector(self.selectors['popup-trigger'])
         popup_trigger.click()
         rand_delay(1, 3)
-        download_table_button = self.crawler.find_element_by_css_selector(self.__selectors['download'])
+        download_table_button = self.crawler.find_element_by_css_selector(self.selectors['download'])
         download_table_button.click()
         rand_delay(5, 10)
 
-    def __click_next_page(self):
-        btn_next_pages = self.crawler.find_elements_by_css_selector(self.__selectors['next-page'])
-        btn_next_pages += self.crawler.find_elements_by_css_selector(self.__selectors['next-page-alt'])
+    def click_next_page(self):
+        btn_next_pages = self.crawler.find_elements_by_css_selector(self.selectors['next-page'])
+        btn_next_pages += self.crawler.find_elements_by_css_selector(self.selectors['next-page-alt'])
         for btn_next_page in btn_next_pages:
             try:
                 btn_next_page.click()
                 break
             except ElementClickInterceptedException:
                 pass
-        rand_delay(5, 10)
+        rand_delay(8, 10)
 
-    def __rename_file(self, cur_page):
+    def rename_file(self, cur_page):
         try:
             downloaded_file = get_latest_file(self.download_dir)
             renamed_file = os.path.join(self.download_dir, f'{self.subcategory}_{cur_page}.csv')
@@ -237,28 +238,33 @@ class DataCrawler(BaseCrawler):
         except ValueError:
             pass
 
-    def __get_cur_page(self):
-        cur_page = int(self.crawler.find_element_by_css_selector(self.__selectors['cur-page']).text)
+    def get_cur_page(self):
+        cur_page = int(self.crawler.find_element_by_css_selector(self.selectors['cur-page']).text)
         return cur_page
 
+    def go_first_page(self):
+        btn_first_page = self.crawler.find_element_by_css_selector(self.selectors['btn-first-page'])
+        btn_first_page.click()
+        rand_delay(1, 3)
+
     def crawl(self):
-        self.__del_prev_files()
+        self.del_prev_files()
         self.crawler.get(self.start_url)
-        self.__cookie_ok()
-        self.__select_digikey_com()
-        self.__set_page_size_100()
-        self.__select_in_stock()
-        max_page = self.__get_max_page()
-        self.__msg_close()
+        self.cookie_ok()
+        self.select_digikey_com()
+        self.set_page_size_100()
+        self.select_in_stock()
+        max_page = self.get_max_page()
+        self.msg_close()
 
         download_tries = 0
-        max_download_tries = 5
+        max_download_tries = 10
         try:
             while True:
-                cur_page = self.__get_cur_page()
+                cur_page = self.get_cur_page()
                 if cur_page not in self.downloaded_pages:
-                    self.__click_download()
-                    self.__rename_file(cur_page)
+                    self.click_download()
+                    self.rename_file(cur_page)
                     self.downloaded_pages.add(cur_page)
                     download_tries = 0
                 else:
@@ -270,11 +276,12 @@ class DataCrawler(BaseCrawler):
                         download_tries_msg = f'Download tries exceeded max {max_download_tries} times. Restart job. '
                         print(f'Download tries exceeded max {max_download_tries} times. Restart job. ')
                         self.log_text += download_tries_msg
-                        self.crawler.get(self.start_url)
+                        self.go_first_page()
+                        download_tries = 0
                 if len(self.downloaded_pages) == max_page:
                     break
                 try:
-                    self.__click_next_page()
+                    self.click_next_page()
                 except NoSuchElementException:
                     break
             in_files = get_file_list(self.download_dir)
@@ -287,10 +294,10 @@ class DataCrawler(BaseCrawler):
             combined_data['Stock'] = pd.to_numeric(combined_data['Stock'], errors='coerce')
             combined_data['Subcategory'] = self.subcategory
             combined_data.to_excel(out_path, index=False)
-        except:
+        except Exception as ex:
+            print(ex)
             stack_trace = traceback.format_exc()
             self.log_text += stack_trace
-            traceback.print_exc()
             raise
         finally:
             log_file_path = os.path.join(self.download_dir, f'{self.subcategory}.log')
@@ -307,7 +314,7 @@ class DataCrawlers:
         self.n_workers = n_workers
         self.headless = headless
 
-    def __crawl(self, start_url):
+    def crawl(self, start_url):
         crawler = DataCrawler(self.driver_path, start_url, self.download_dir, self.headless)
         crawler.crawl()
         crawler.close()
@@ -315,7 +322,7 @@ class DataCrawlers:
     def crawl_all(self):
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.n_workers, len(self.start_urls))) as executor:
             for url in self.start_urls:
-                executor.submit(self.__crawl, url)
+                executor.submit(self.crawl, url)
         print('Crawl finished. ')
 
     def combine_subcategory_data(self):
