@@ -12,6 +12,7 @@ import traceback
 import abc
 import os
 import pandas as pd
+import logging
 
 
 class BaseCrawler(metaclass=abc.ABCMeta):
@@ -165,10 +166,27 @@ class DataCrawler(BaseCrawler):
         self.subcategory = url_split[-2].replace('-', '_')
         self.product_id = url_split[-1]
         self.download_dir = os.path.join(download_dir, f'{self.subcategory}_{self.product_id}')
-        self.log_text = ''
         self.setup_crawler()
         self.downloaded_pages = []
         self.MAX_WAIT = 20
+
+        os.makedirs(self.download_dir, exist_ok=True)
+        self.del_prev_files()
+        log_file_path = os.path.join(self.download_dir, f'{self.subcategory}.log')
+        with open(log_file_path, 'w+') as f:
+            f.write('')
+
+        formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s]: %(message)s')
+        self.logger = logging.getLogger(self.subcategory)
+        self.logger.setLevel(logging.INFO)
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(formatter)
+        self.logger.addHandler(console)
+        file_handler = logging.FileHandler(log_file_path)
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
 
     def del_prev_files(self):
         files = get_file_list(self.download_dir)
@@ -242,8 +260,7 @@ class DataCrawler(BaseCrawler):
             os.rename(downloaded_file, renamed_file)
 
             status = f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"\n'
-            self.log_text += status
-            print(status)
+            self.logger.info(status)
         except ValueError:
             pass
 
@@ -277,7 +294,6 @@ class DataCrawler(BaseCrawler):
         self.crawler.execute_script(f"window.scrollTo(0, {neg_offset});")
 
     def crawl(self):
-        self.del_prev_files()
         self.crawler.get(self.start_url)
         self.cookie_ok()
         self.select_digikey_com()
@@ -289,6 +305,7 @@ class DataCrawler(BaseCrawler):
 
         download_tries = 0
         max_download_tries = 10
+        rand_delay(3, 5)
         max_page = self.get_max_page()
         try:
             while True:
@@ -297,32 +314,31 @@ class DataCrawler(BaseCrawler):
                     self.click_download()
                     self.rename_file(cur_page)
                     self.downloaded_pages.append(cur_page)
-                    print(f'Downloading current page: {cur_page}')
-                    print(f'Downloaded pages: {self.downloaded_pages}')
-                    print(f'Max page: {max_page}')
+                    self.logger.info(
+                        {'Current Page': cur_page,
+                         'Max Page': max_page}
+                    )
                     download_tries = 0
                 else:
-                    page_downloaded_msg = f'Page {cur_page} has already been downloaded. \n'
+                    self.logger.warning(f'Page {cur_page} has already been downloaded. \n')
                     self.scroll_up_down()
-                    self.log_text += page_downloaded_msg
-                    print(page_downloaded_msg)
                     download_tries += 1
                     if download_tries > max_download_tries:
                         download_tries_msg = f'Download tries exceeded max {max_download_tries} times. Restart job. '
-                        print(f'Download tries exceeded max {max_download_tries} times. Restart job. ')
-                        self.log_text += download_tries_msg
+                        self.logger.warning(download_tries_msg)
                         self.go_first_page()
                         download_tries = 0
 
                 if len(self.downloaded_pages) == max_page or cur_page == max_page:
                     break
+                self.click_next_page()
 
-            in_files = get_file_list(self.download_dir)
+            in_files = get_file_list(self.download_dir, suffix='.csv')
             out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')
             combined_data = concat_data(in_files)
             if any(combined_data['Stock'].astype(str).str.contains('.', regex=False)):
                 alert = 'ALERT!\nColumn "Stock" contains decimal numbers.\nColumn misaligned.\nFix data mannually. '
-                self.log_text += alert
+                self.logger.warning(alert)
             combined_data['Stock'] = combined_data['Stock'].astype(str).str.replace(',', '')
             combined_data['Stock'] = pd.to_numeric(combined_data['Stock'], errors='coerce')
             combined_data['Subcategory'] = self.subcategory
@@ -330,12 +346,10 @@ class DataCrawler(BaseCrawler):
         except Exception as ex:
             print(ex)
             stack_trace = traceback.format_exc()
-            self.log_text += stack_trace
+            self.logger.error(stack_trace)
             raise
         finally:
-            log_file_path = os.path.join(self.download_dir, f'{self.subcategory}.log')
-            with open(log_file_path, 'w') as f:
-                f.write(self.log_text)
+            self.logger.info(f'Finish crawling {self.subcategory}')
 
 
 class DataCrawlers:
