@@ -167,7 +167,8 @@ class DataCrawler(BaseCrawler):
         self.download_dir = os.path.join(download_dir, f'{self.subcategory}_{self.product_id}')
         self.log_text = ''
         self.setup_crawler()
-        self.downloaded_pages = set()
+        self.downloaded_pages = []
+        self.MAX_WAIT = 20
 
     def del_prev_files(self):
         files = get_file_list(self.download_dir)
@@ -196,27 +197,18 @@ class DataCrawler(BaseCrawler):
         rand_delay(1, 3)
 
     def set_page_size_100(self):
-        self.crawler.find_element_by_css_selector(self.selectors['per-page-selector']).click()
-        rand_delay(1, 3)
-        self.crawler.find_element_by_css_selector(self.selectors['per-page-100']).click()
-        rand_delay(1, 3)
+        self.element_to_be_clickable(self.selectors['per-page-selector']).click()
+        self.element_to_be_clickable(self.selectors['per-page-100']).click()
 
     def select_in_stock(self):
-        in_stock = self.crawler.find_element_by_css_selector(self.selectors['in-stock'])
+        in_stock = self.element_to_be_clickable(self.selectors['in-stock'])
         in_stock.click()
         rand_delay(1, 3)
-
-        # unselect normally stocking
-        # normally_stocking = self.crawler.find_element_by_css_selector(self.__selectors['normally-stocking'])
-        # normally_stocking.click()
-        # rand_delay(1, 3)
-
-        apply_all = self.crawler.find_element_by_css_selector(self.selectors['apply-all'])
+        apply_all = self.element_to_be_clickable(self.selectors['apply-all'])
         apply_all.click()
-        rand_delay(1, 3)
 
     def select_active(self):
-        active_parts = self.crawler.find_element_by_css_selector(self.selectors['active_parts'])
+        active_parts = self.element_to_be_clickable(self.selectors['active_parts'])
         active_parts.click()
         rand_delay(1, 3)
 
@@ -226,12 +218,11 @@ class DataCrawler(BaseCrawler):
         return max_page
 
     def click_download(self):
-        popup_trigger = self.crawler.find_element_by_css_selector(self.selectors['popup-trigger'])
+        popup_trigger = self.element_to_be_clickable(self.selectors['popup-trigger'])
         popup_trigger.click()
-        rand_delay(1, 3)
-        download_table_button = self.crawler.find_element_by_css_selector(self.selectors['download'])
+        download_table_button = self.element_to_be_clickable(self.selectors['download'])
         download_table_button.click()
-        rand_delay(5, 8)
+        rand_delay(8, 9)
 
     def click_next_page(self):
         btn_next_pages = self.crawler.find_elements_by_css_selector(self.selectors['next-page'])
@@ -250,7 +241,7 @@ class DataCrawler(BaseCrawler):
             renamed_file = os.path.join(self.download_dir, f'{self.subcategory}_{cur_page}.csv')
             os.rename(downloaded_file, renamed_file)
 
-            status = f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"\n\n'
+            status = f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"\n'
             self.log_text += status
             print(status)
         except ValueError:
@@ -262,25 +253,27 @@ class DataCrawler(BaseCrawler):
         return cur_page
 
     def go_first_page(self):
-        btn_first_page = self.crawler.find_element_by_css_selector(self.selectors['btn-first-page'])
+        btn_first_page = self.element_to_be_clickable(self.selectors['btn-first-page'])
         btn_first_page.click()
-        rand_delay(1, 3)
+
+    def element_to_be_clickable(self, css):
+        element = WebDriverWait(self.crawler, self.MAX_WAIT).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, css))
+        )
+        return element
 
     def dkpn_sort_asc(self):
         rand_delay(1, 3)
         pos_offset = 900
         self.crawler.execute_script(f"window.scrollTo(0, {pos_offset});")
-        sort_asc = WebDriverWait(self.crawler, 20).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors['dkpn-sort-asc']))
-        )
+        sort_asc = self.element_to_be_clickable(self.selectors['dkpn-sort-asc'])
         sort_asc.click()
-        rand_delay(1, 3)
 
     def scroll_up_down(self):
         pos_offset = 200
         neg_offset = -200
         self.crawler.execute_script(f"window.scrollTo(0, {pos_offset});")
-        rand_delay(1, 3)
+        rand_delay(0, 1)
         self.crawler.execute_script(f"window.scrollTo(0, {neg_offset});")
 
     def crawl(self):
@@ -290,20 +283,23 @@ class DataCrawler(BaseCrawler):
         self.select_digikey_com()
         self.set_page_size_100()
         self.select_in_stock()
-        max_page = self.get_max_page()
+
         self.msg_close()
         self.dkpn_sort_asc()
 
         download_tries = 0
         max_download_tries = 10
-
+        max_page = self.get_max_page()
         try:
             while True:
                 cur_page = self.get_cur_page()
                 if cur_page not in self.downloaded_pages:
                     self.click_download()
                     self.rename_file(cur_page)
-                    self.downloaded_pages.add(cur_page)
+                    self.downloaded_pages.append(cur_page)
+                    print(f'Downloading current page: {cur_page}')
+                    print(f'Downloaded pages: {self.downloaded_pages}')
+                    print(f'Max page: {max_page}')
                     download_tries = 0
                 else:
                     page_downloaded_msg = f'Page {cur_page} has already been downloaded. \n'
@@ -317,14 +313,10 @@ class DataCrawler(BaseCrawler):
                         self.log_text += download_tries_msg
                         self.go_first_page()
                         download_tries = 0
+
                 if len(self.downloaded_pages) == max_page or cur_page == max_page:
                     break
-                try:
-                    self.click_next_page()
-                except NoSuchElementException as ex:
-                    print(ex)
-                    print('No next page')
-                    break
+
             in_files = get_file_list(self.download_dir)
             out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')
             combined_data = concat_data(in_files)
