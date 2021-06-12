@@ -1,4 +1,5 @@
-from src.crawlers import VendorSubCategoryCrawler, AllSubCategoryCrawler, DataCrawler, DataCrawlers
+from src.data_crawlers import DataCrawler, DataCrawlers
+from src.category_crawlers import VendorSubCategoryCrawler, AllSubCategoryCrawler
 from src.utils import get_latest_session_index, get_file_list, concat_data
 import os
 
