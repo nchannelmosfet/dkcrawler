@@ -29,13 +29,12 @@ def test_all_subcategory_crawler():
 def test_data_crawler():
     dk_data_dir = os.path.join(os.path.dirname(os.getcwd()), 'DK_Data_By_URLs')
     session_index = get_latest_session_index(dk_data_dir) + 1
-    download_dir = os.path.join(dk_data_dir, f'session{session_index}')
+    download_dir = os.path.join(dk_data_dir, f'session1')
     os.makedirs(download_dir, exist_ok=True)
     driver_path = 'geckodriver.exe'
     start_url = 'https://www.digikey.com/en/products/filter/barrel-power-cables/464'
     crawler = DataCrawler(driver_path, start_url, download_dir, headless=False)
     crawler.crawl()
-    crawler.close()
 
 
 def test_data_crawlers():

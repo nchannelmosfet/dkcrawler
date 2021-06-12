@@ -45,44 +45,36 @@ class DataCrawler(BaseCrawler):
 
         os.makedirs(self.download_dir, exist_ok=True)
         self.del_prev_files()
-        log_file_path = os.path.join(self.download_dir, f'{self.subcategory}.log')
-        with open(log_file_path, 'w+') as f:
+        self.log_file_path = os.path.join(self.download_dir, f'{self.subcategory}.log')
+        self.create_log_file()
+        self.logger = self.set_up_logger()
+
+    def create_log_file(self):
+        with open(self.log_file_path, 'w+') as f:
             f.write('')
 
+    def set_up_logger(self):
         formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s]: %(message)s')
-        self.logger = logging.getLogger(self.subcategory)
-        self.logger.setLevel(logging.INFO)
+        logger = logging.getLogger(self.subcategory)
+        logger.setLevel(logging.INFO)
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
         console.setFormatter(formatter)
-        self.logger.addHandler(console)
-        file_handler = logging.FileHandler(log_file_path)
+        logger.addHandler(console)
+        file_handler = logging.FileHandler(self.log_file_path)
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(formatter)
-        self.logger.addHandler(file_handler)
+        logger.addHandler(file_handler)
+        return logger
 
     def del_prev_files(self):
         files = get_file_list(self.download_dir)
         for f in files:
             os.remove(f)
 
-    def select_digikey_com(self):
+    def click_element(self, keyword):
         try:
-            self.crawler.find_element_by_css_selector(self.selectors['digikey.com']).click()
-        except NoSuchElementException:
-            pass
-        rand_delay(1, 3)
-
-    def cookie_ok(self):
-        try:
-            self.crawler.find_element_by_css_selector(self.selectors['cookie_ok']).click()
-        except NoSuchElementException:
-            pass
-        rand_delay(1, 3)
-
-    def msg_close(self):
-        try:
-            self.crawler.find_element_by_css_selector(self.selectors['msg_close']).click()
+            self.crawler.find_element_by_css_selector(self.selectors[keyword]).click()
         except NoSuchElementException:
             pass
         rand_delay(1, 3)
@@ -97,11 +89,6 @@ class DataCrawler(BaseCrawler):
         rand_delay(1, 3)
         apply_all = self.element_to_be_clickable(self.selectors['apply-all'])
         apply_all.click()
-
-    def select_active(self):
-        active_parts = self.element_to_be_clickable(self.selectors['active_parts'])
-        active_parts.click()
-        rand_delay(1, 3)
 
     def get_max_page(self):
         max_page = self.crawler.find_element_by_css_selector(self.selectors['max-page']).text
@@ -132,7 +119,7 @@ class DataCrawler(BaseCrawler):
             renamed_file = os.path.join(self.download_dir, f'{self.subcategory}_{cur_page}.csv')
             os.rename(downloaded_file, renamed_file)
 
-            status = f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"\n'
+            status = f'Renamed file: \n"{downloaded_file}" \n-> \n"{renamed_file}"'
             self.logger.info(status)
         except ValueError:
             pass
@@ -168,12 +155,14 @@ class DataCrawler(BaseCrawler):
 
     def crawl(self):
         self.crawler.get(self.start_url)
-        self.cookie_ok()
-        self.select_digikey_com()
-        self.set_page_size_100()
-        self.select_in_stock()
+        element_keywords = [
+            'digikey.com', 'cookie_ok',
+            'msg_close', 'per-page-selector', 'per-page-100',
+            'in-stock', 'apply-all'
+        ]
+        for kw in element_keywords:
+            self.click_element(kw)
 
-        self.msg_close()
         self.dkpn_sort_asc()
 
         download_tries = 0
@@ -188,8 +177,7 @@ class DataCrawler(BaseCrawler):
                     self.rename_file(cur_page)
                     self.downloaded_pages.append(cur_page)
                     self.logger.info(
-                        {'Current Page': cur_page,
-                         'Max Page': max_page}
+                        str({'Current Page': cur_page, 'Max Page': max_page}) + '\n'
                     )
                     download_tries = 0
                 else:
@@ -238,7 +226,6 @@ class DataCrawlers:
     def crawl(self, start_url):
         crawler = DataCrawler(self.driver_path, start_url, self.download_dir, self.headless)
         crawler.crawl()
-        crawler.close()
 
     def crawl_all(self):
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.n_workers, len(self.start_urls))) as executor:
