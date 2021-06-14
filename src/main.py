@@ -29,24 +29,22 @@ def test_all_subcategory_crawler():
 def test_data_crawler():
     dk_data_dir = os.path.join(os.path.dirname(os.getcwd()), 'DK_Data_By_URLs')
     session_index = get_latest_session_index(dk_data_dir) + 1
-    download_dir = os.path.join(dk_data_dir, f'session1')
+    download_dir = os.path.join(dk_data_dir, f'session{session_index}')
     os.makedirs(download_dir, exist_ok=True)
     driver_path = 'geckodriver.exe'
-    start_url = 'https://www.digikey.com/en/products/filter/barrel-power-cables/464'
+    start_url = 'https://www.digikey.com/en/products/filter/thermal-heat-sinks/219'
     crawler = DataCrawler(driver_path, start_url, download_dir, headless=False)
     crawler.crawl()
 
 
 def test_data_crawlers():
     driver_path = 'geckodriver.exe'
-    # https://www.digikey.com/en/products/filter/thermal-pads-sheets/218
-    # 'https://www.digikey.com/en/products/filter/thermal-heat-sinks/219'
-    start_urls = ['https://www.digikey.com/en/products/filter/accessories/159']
+    start_urls = ['https://www.digikey.com/en/products/filter/thermal-heat-sinks/219']
     dk_data_dir = os.path.join(os.path.dirname(os.getcwd()), 'DK_Data_By_URLs')
     session_index = get_latest_session_index(dk_data_dir) + 1
     download_dir = os.path.join(dk_data_dir, f'session{session_index}')
     os.makedirs(download_dir, exist_ok=True)
-    data_crawler = DataCrawlers(driver_path, start_urls, download_dir, n_workers=3, headless=False)
+    data_crawler = DataCrawlers(driver_path, start_urls, download_dir, n_workers=3, headless=True)
     data_crawler.crawl_all()
 
 

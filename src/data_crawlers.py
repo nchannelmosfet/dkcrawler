@@ -79,18 +79,8 @@ class DataCrawler(BaseCrawler):
             pass
         rand_delay(1, 3)
 
-    def set_page_size_100(self):
-        self.element_to_be_clickable(self.selectors['per-page-selector']).click()
-        self.element_to_be_clickable(self.selectors['per-page-100']).click()
-
-    def select_in_stock(self):
-        in_stock = self.element_to_be_clickable(self.selectors['in-stock'])
-        in_stock.click()
-        rand_delay(1, 3)
-        apply_all = self.element_to_be_clickable(self.selectors['apply-all'])
-        apply_all.click()
-
     def get_max_page(self):
+        rand_delay(15, 20)
         max_page = self.crawler.find_element_by_css_selector(self.selectors['max-page']).text
         max_page = int(max_page.split('/')[-1])
         return max_page
@@ -129,10 +119,6 @@ class DataCrawler(BaseCrawler):
         cur_page = int(self.crawler.find_element_by_css_selector(self.selectors['cur-page']).get_attribute('value'))
         return cur_page
 
-    def go_first_page(self):
-        btn_first_page = self.element_to_be_clickable(self.selectors['btn-first-page'])
-        btn_first_page.click()
-
     def element_to_be_clickable(self, css):
         element = WebDriverWait(self.crawler, self.MAX_WAIT).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, css))
@@ -149,16 +135,32 @@ class DataCrawler(BaseCrawler):
     def scroll_up_down(self):
         pos_offset = 200
         neg_offset = -200
-        self.crawler.execute_script(f"window.scrollTo(0, {pos_offset});")
-        rand_delay(0, 1)
-        self.crawler.execute_script(f"window.scrollTo(0, {neg_offset});")
+        for offset in [pos_offset, neg_offset]:
+            self.crawler.execute_script(f"window.scrollTo(0, {offset});")
+            rand_delay(0, 1)
+
+    def combine_data(self):
+        in_files = get_file_list(self.download_dir, suffix='.csv')
+        out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')
+        combined_data = concat_data(in_files)
+        if any(combined_data['Stock'].astype(str).str.contains('.', regex=False)):
+            alert = 'ALERT!\nColumn "Stock" contains decimal numbers.\nColumn misaligned.\nFix data mannually. '
+            self.logger.warning(alert)
+        combined_data['Stock'] = combined_data['Stock'].astype(str).str.replace(',', '')
+        combined_data['Stock'] = pd.to_numeric(combined_data['Stock'], errors='coerce')
+        combined_data['Subcategory'] = self.subcategory
+        combined_data.to_excel(out_path, index=False)
 
     def crawl(self):
         self.crawler.get(self.start_url)
         element_keywords = [
-            'digikey.com', 'cookie_ok',
-            'msg_close', 'per-page-selector', 'per-page-100',
-            'in-stock', 'apply-all'
+            'digikey.com',
+            'cookie_ok',
+            'msg_close',
+            'per-page-selector',
+            'per-page-100',
+            'in-stock',
+            'apply-all',
         ]
         for kw in element_keywords:
             self.click_element(kw)
@@ -167,7 +169,6 @@ class DataCrawler(BaseCrawler):
 
         download_tries = 0
         max_download_tries = 10
-        rand_delay(3, 5)
         max_page = self.get_max_page()
         try:
             while True:
@@ -187,23 +188,14 @@ class DataCrawler(BaseCrawler):
                     if download_tries > max_download_tries:
                         download_tries_msg = f'Download tries exceeded max {max_download_tries} times. Restart job. '
                         self.logger.warning(download_tries_msg)
-                        self.go_first_page()
+                        self.click_element('btn-first-page')
                         download_tries = 0
 
                 if len(self.downloaded_pages) == max_page or cur_page == max_page:
                     break
                 self.click_next_page()
+            self.combine_data()
 
-            in_files = get_file_list(self.download_dir, suffix='.csv')
-            out_path = os.path.join(self.download_dir, f'{self.subcategory}_all.xlsx')
-            combined_data = concat_data(in_files)
-            if any(combined_data['Stock'].astype(str).str.contains('.', regex=False)):
-                alert = 'ALERT!\nColumn "Stock" contains decimal numbers.\nColumn misaligned.\nFix data mannually. '
-                self.logger.warning(alert)
-            combined_data['Stock'] = combined_data['Stock'].astype(str).str.replace(',', '')
-            combined_data['Stock'] = pd.to_numeric(combined_data['Stock'], errors='coerce')
-            combined_data['Subcategory'] = self.subcategory
-            combined_data.to_excel(out_path, index=False)
         except Exception as ex:
             print(ex)
             stack_trace = traceback.format_exc()
