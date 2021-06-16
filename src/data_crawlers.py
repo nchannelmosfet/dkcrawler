@@ -56,6 +56,8 @@ class DataCrawler(BaseCrawler):
     def set_up_logger(self):
         formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s]: %(message)s')
         logger = logging.getLogger(self.subcategory)
+        if len(logger.handlers) > 0:
+            logger.handlers.clear()
         logger.setLevel(logging.INFO)
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
