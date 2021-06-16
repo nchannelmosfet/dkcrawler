@@ -4,8 +4,6 @@ import os
 import re
 import pandas as pd
 from pandas.errors import EmptyDataError, ParserError
-from selenium.webdriver.firefox.options import Options
-from selenium import webdriver
 
 
 def rand_delay(low, high):
@@ -55,20 +53,3 @@ def concat_data(in_files):
     combined_data = pd.concat(dfs, join='inner', ignore_index=True)
     # combined_data.drop_duplicates(inplace=True)
     return combined_data
-
-
-def setup_browser(driver_path, download_dir=None):
-    profile = webdriver.FirefoxProfile()
-    profile.set_preference("browser.download.folderList", 2)
-    profile.set_preference("browser.download.manager.showWhenStarting", False)
-
-    if download_dir:
-        profile.set_preference("browser.download.dir", download_dir)
-    profile.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
-
-    options = Options()
-    options.headless = True
-    browser = webdriver.Firefox(executable_path=driver_path, firefox_profile=profile, options=options)
-    browser.set_window_size(1920, 1080)
-    browser.set_page_load_timeout(600)
-    return browser

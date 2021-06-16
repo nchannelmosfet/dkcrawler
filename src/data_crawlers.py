@@ -82,7 +82,7 @@ class DataCrawler(BaseCrawler):
         rand_delay(1, 3)
 
     def get_max_page(self):
-        rand_delay(15, 20)
+        rand_delay(8, 12)
         max_page = self.crawler.find_element_by_css_selector(self.selectors['max-page']).text
         max_page = int(max_page.split('/')[-1])
         return max_page
@@ -225,7 +225,7 @@ class DataCrawlers:
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.n_workers, len(self.start_urls))) as executor:
             for url in self.start_urls:
                 executor.submit(self.crawl, url)
-        print('Crawl finished. ')
+        print('All crawl jobs finished. ')
 
     def combine_subcategory_data(self):
         in_files = get_file_list(self.download_dir, suffix='all.xlsx')

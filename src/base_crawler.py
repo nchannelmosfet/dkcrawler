@@ -57,7 +57,7 @@ class BaseCrawler(metaclass=abc.ABCMeta):
         options = Options()
         options.headless = self.headless
         crawler = webdriver.Firefox(executable_path=self.driver_path, firefox_profile=profile, options=options)
-        crawler.set_window_size(1600, 900)
+        crawler.set_window_size(1920, 1080)
         crawler.set_page_load_timeout(600)
         crawler.maximize_window()
         self.crawler = crawler
